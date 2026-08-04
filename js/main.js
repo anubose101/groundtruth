@@ -2,6 +2,26 @@
 
 let lastResults = null;
 
+/* ---------- Sidebar collapse/expand ---------- */
+
+const sidebarEl = document.getElementById('sidebar');
+const sidebarToggleBtn = document.getElementById('sidebarToggle');
+
+function setSidebarCollapsed(collapsed){
+  sidebarEl.classList.toggle('collapsed', collapsed);
+  sidebarToggleBtn.textContent = collapsed ? '☰' : '✕';
+  sidebarToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+  sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Show sidebar' : 'Hide sidebar');
+}
+
+sidebarToggleBtn.addEventListener('click', function(){
+  setSidebarCollapsed(!sidebarEl.classList.contains('collapsed'));
+});
+
+// Start collapsed on narrow (phone-width) screens so the map is visible
+// immediately; start open on desktop where there's room for both.
+setSidebarCollapsed(window.innerWidth <= 768);
+
 /* ---------- Tabs ---------- */
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
