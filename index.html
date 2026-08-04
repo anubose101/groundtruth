@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ground Truth — UK Location Explorer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="map">
+    <div id="mapStatus" class="hidden"></div>
+  </div>
+  <div id="sidebar">
+    <header>
+      <div class="eyebrow">Ground Truth · Phase 1</div>
+      <h1>What's it like there?</h1>
+      <p>Click to drop a pin, then hit "Search this area". The crime heatmap lives in the map's layers menu, independent of these tabs.</p>
+    </header>
+
+    <div id="pinBar"><div class="empty-state">Click a point on the map to drop a pin.</div></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="summary">Summary</button>
+      <button class="tab-btn" data-tab="crime">Crime</button>
+      <button class="tab-btn" data-tab="weather">Weather</button>
+      <button class="tab-btn" data-tab="pollution">Pollution</button>
+      <button class="tab-btn" data-tab="housing">Housing</button>
+    </div>
+
+    <div id="tabPanels">
+      <div class="tab-panel" data-panel="summary">
+        <div id="summaryBody"><div class="empty-state">Search a location to see constituency, council, and political details here.</div></div>
+        <div class="ai-block">
+          <div class="section-title" style="margin-bottom:8px;">AI summary</div>
+          <div class="headline-sub">Turns everything gathered across all tabs into a short plain-English write-up, generated live by Claude. Uses a small amount of your normal Claude.ai usage each time you press it.</div>
+          <button id="aiSummaryBtn" class="search-btn" style="margin-top:12px; width:100%;" disabled>Search a location first</button>
+          <div class="ai-output" id="aiSummaryOutput"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="crime">
+        <div id="crimeBody"><div class="empty-state">Search a location to see crime stats and trends here.</div></div>
+        <div class="council-section">
+          <div class="section-title">Crime heatmap (current map view)</div>
+          <div class="headline-sub">Independent of your pin — scans whatever's currently visible on the map. Turn the layer on/off any time from the layers icon, top right of the map; it stays on while you switch tabs.</div>
+          <button id="crimeHeatRefresh" class="search-btn" style="margin:12px 0 6px; width:100%;">Load heatmap for this view</button>
+          <div id="crimeCatTableWrap"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="weather">
+        <div id="weatherBody"><div class="empty-state">Search a location to see weather stats and trends here.</div></div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="pollution">
+        <div id="pollutionBody"><div class="empty-state">Search a location to see air quality here.</div></div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="housing">
+        <div class="block">
+          <div class="block-title">Filters</div>
+          <div class="filters-grid">
+            <label>Min price <input type="number" id="filterMinPrice" placeholder="£ no min"></label>
+            <label>Max price <input type="number" id="filterMaxPrice" placeholder="£ no max"></label>
+            <label>Bedrooms <select id="filterBeds">
+              <option value="">Any</option><option value="1">1+</option><option value="2">2+</option>
+              <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+            </select></label>
+            <label>Radius <select id="filterRadius">
+              <option value="0.25">1/4 mile</option><option value="0.5" selected>1/2 mile</option>
+              <option value="1">1 mile</option><option value="3">3 miles</option><option value="5">5 miles</option>
+            </select></label>
+          </div>
+          <div class="filter-types">
+            <label><input type="checkbox" class="filter-type-cb" value="detached" checked> Detached</label>
+            <label><input type="checkbox" class="filter-type-cb" value="semi-detached" checked> Semi-detached</label>
+            <label><input type="checkbox" class="filter-type-cb" value="terraced" checked> Terraced</label>
+            <label><input type="checkbox" class="filter-type-cb" value="flat" checked> Flat/apartment</label>
+            <label><input type="checkbox" class="filter-type-cb" value="bungalow" checked> Bungalow</label>
+            <label><input type="checkbox" class="filter-type-cb" value="land" > Land</label>
+          </div>
+          <select id="filterSort" class="full-select">
+            <option value="newest">Sort: newest listed</option>
+            <option value="price-asc">Sort: price, low to high</option>
+            <option value="price-desc">Sort: price, high to low</option>
+          </select>
+          <button id="applyFiltersBtn" class="search-btn" style="width:100%;">Apply filters</button>
+        </div>
+        <div id="listingsWrap"></div>
+
+        <div class="divider-label">Land Registry price history</div>
+        <div id="landRegistryBody"><div class="empty-state">Search a location to see historic sold prices and the appreciating/depreciating trend here.</div></div>
+
+        <div class="divider-label">Local development watch</div>
+        <div id="planningBody"><div class="empty-state">Search a location to see nearby protective designations and ready-made links for checking planning activity yourself.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="js/map.js"></script>
+<script src="js/crime.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/pollution.js"></script>
+<script src="js/housing.js"></script>
+<script src="js/ai-summary.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
