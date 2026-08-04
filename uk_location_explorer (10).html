@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ground Truth — UK Location Explorer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0E1912;
+    --panel: #142219;
+    --panel-line: #24382B;
+    --ink: #EDEEE6;
+    --ink-dim: #9FAE9C;
+    --good: #6FB98F;
+    --mid: #D9A54B;
+    --bad: #C1603F;
+    --accent: #E4C87A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  #app{display:flex;height:100vh;width:100vw;}
+  #map{flex:1 1 auto;height:100%;position:relative;}
+  #sidebar{
+    width:440px; min-width:380px; max-width:44vw;
+    background:var(--panel); border-left:1px solid var(--panel-line);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{padding:22px 24px 14px; border-bottom:1px solid var(--panel-line); flex-shrink:0;}
+  header .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent);}
+  header h1{font-family:'Fraunces',serif; font-weight:600; font-size:25px; margin:6px 0 8px; line-height:1.1;}
+  header p{margin:0; color:var(--ink-dim); font-size:12.5px; line-height:1.5;}
+
+  #pinBar{padding:14px 24px; border-bottom:1px solid var(--panel-line); flex-shrink:0; background:#16241A;}
+  #pinBar .empty-state{color:var(--ink-dim); font-size:13px;}
+  #pinBar .coord{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-dim);}
+  .search-btn{background:var(--accent); color:#1A1400; border:none; border-radius:6px; padding:9px 16px; font-weight:600; font-size:13px; cursor:pointer;}
+  .search-btn:hover{filter:brightness(1.08);}
+  .search-btn:disabled{opacity:0.5; cursor:not-allowed;}
+
+  .tabs{display:flex; border-bottom:1px solid var(--panel-line); flex-shrink:0; overflow-x:auto;}
+  .tab-btn{flex:1; min-width:76px; background:none; border:none; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase; padding:12px 4px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
+  .tab-btn.active{color:var(--accent); border-bottom-color:var(--accent);}
+  .tab-btn:hover{color:var(--ink);}
+
+  #tabPanels{flex:1; overflow-y:auto;}
+  .tab-panel{padding:20px 24px 40px;}
+  .tab-panel.hidden{display:none;}
+
+  .empty-state{color:var(--ink-dim); font-size:14px; line-height:1.6; padding-top:6px;}
+  .block{margin-bottom:26px;}
+  .block-title{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:10px;}
+  .section-title{font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:var(--accent); margin:0 0 14px;}
+  .gauge-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .gauge-label{width:110px; font-size:12.5px; color:var(--ink-dim); flex-shrink:0;}
+  .gauge-track{flex:1; height:6px; background:#1E2E22; border-radius:3px; overflow:hidden;}
+  .gauge-fill{height:100%; border-radius:3px; transition:width 0.6s ease;}
+  .gauge-value{width:60px; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12px; flex-shrink:0;}
+  .headline-stat{font-family:'Fraunces',serif; font-size:34px; font-weight:600; line-height:1;}
+  .headline-sub{font-size:12.5px; color:var(--ink-dim); margin-top:4px;}
+  .err{color:var(--bad); font-size:12.5px;}
+  .note{font-size:11px; color:var(--ink-dim); margin-top:18px; line-height:1.5; border-top:1px solid var(--panel-line); padding-top:14px;}
+  .location-block{background:#1A2B1E; border:1px solid var(--panel-line); border-radius:8px; padding:14px 16px; margin-bottom:20px;}
+  .location-constituency{font-family:'Fraunces',serif; font-size:20px; font-weight:600; color:var(--accent); margin-bottom:6px;}
+  .location-sub{font-size:12.5px; color:var(--ink-dim); line-height:1.6;}
+  .council-section{background:#16241A; border:1px solid var(--panel-line); border-radius:8px; padding:16px; margin-bottom:22px;}
+  .divider-label{font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-dim); margin:22px 0 14px;}
+
+  .trend-row{display:flex; justify-content:space-between; font-size:12px; padding:4px 0; color:var(--ink-dim);}
+  .trend-row span.tv{font-family:'IBM Plex Mono',monospace;}
+  .trend-up{color:var(--bad);}
+  .trend-down{color:var(--good);}
+  .trend-flat{color:var(--ink-dim);}
+  .trend-na{color:var(--ink-dim); font-style:italic;}
+
+  .ai-block{background:#16241A; border:1px solid var(--accent); border-radius:8px; padding:16px; margin-top:28px;}
+  .ai-output{font-size:13px; line-height:1.6; color:var(--ink); margin-top:12px; white-space:pre-wrap;}
+
+  .crime-table{width:100%; border-collapse:collapse; font-size:12px; margin-top:10px;}
+  .crime-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-dim); border-bottom:1px solid var(--panel-line); padding:6px 4px;}
+  .crime-table td{padding:6px 4px; border-bottom:1px solid var(--panel-line); color:var(--ink);}
+  .crime-table td:first-child, .crime-table th:first-child{width:26px;}
+  .crime-table td:last-child, .crime-table th:last-child{text-align:right; font-family:'IBM Plex Mono',monospace; color:var(--ink-dim);}
+  .crime-table input{accent-color:var(--accent);}
+  .crime-list{list-style:none; margin:12px 0 0; padding:0;}
+  .crime-list li{display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; border-bottom:1px solid var(--panel-line); color:var(--ink-dim); gap:10px;}
+  .crime-list li span:first-child{flex:1;}
+  .crime-list li span:last-child{font-family:'IBM Plex Mono',monospace; color:var(--ink); flex-shrink:0;}
+
+  .filters-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;}
+  .filters-grid label{font-size:11px; color:var(--ink-dim); display:flex; flex-direction:column; gap:4px;}
+  .filters-grid input, .filters-grid select{width:100%; background:#1A2B1E; color:var(--ink); border:1px solid var(--panel-line); border-radius:5px; padding:6px; font-size:12px;}
+  .filter-types{display:flex; flex-wrap:wrap; gap:8px 14px; margin:4px 0 12px;}
+  .filter-types label{font-size:12px; color:var(--ink-dim); display:flex; align-items:center; gap:5px;}
+  .filter-types input{accent-color:var(--accent);}
+  .full-select{width:100%; background:#1A2B1E; color:var(--ink); border:1px solid var(--panel-line); border-radius:5px; padding:7px; font-size:12px; margin-bottom:12px;}
+  .link-row{display:block; color:var(--accent); font-size:13px; margin-bottom:8px; text-decoration:none;}
+  .link-row:hover{text-decoration:underline;}
+
+  #mapStatus{
+    position:absolute; top:12px; left:12px; z-index:1000;
+    background:var(--panel); border:1px solid var(--panel-line); border-radius:8px;
+    padding:9px 14px; max-width:280px; font-size:12.5px; color:var(--ink);
+    box-shadow:0 4px 14px rgba(0,0,0,0.45);
+  }
+  #mapStatus.hidden{display:none;}
+
+  .leaflet-control-layers{background:var(--panel) !important; color:var(--ink) !important; border:1px solid var(--panel-line) !important;}
+  .leaflet-control-layers-list, .leaflet-control-layers label{color:var(--ink) !important; font-size:12.5px !important;}
+  .leaflet-control-scale-line{background:rgba(20,34,25,0.85) !important; color:var(--ink) !important; border-color:var(--ink-dim) !important;}
+  .leaflet-bar a{background:var(--panel) !important; color:var(--ink) !important; border-color:var(--panel-line) !important;}
+  .crime-spot-icon > div{ border-radius:50%; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:700; text-align:center; border:2px solid rgba(255,255,255,0.65); box-shadow:0 2px 6px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
+  .spot-tooltip{font-family:'Inter',sans-serif; font-size:12px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map">
+    <div id="mapStatus" class="hidden"></div>
+  </div>
+  <div id="sidebar">
+    <header>
+      <div class="eyebrow">Ground Truth · Phase 1</div>
+      <h1>What's it like there?</h1>
+      <p>Click to drop a pin, then hit "Search this area". The crime heatmap lives in the map's layers menu, independent of these tabs.</p>
+    </header>
+
+    <div id="pinBar"><div class="empty-state">Click a point on the map to drop a pin.</div></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="summary">Summary</button>
+      <button class="tab-btn" data-tab="crime">Crime</button>
+      <button class="tab-btn" data-tab="weather">Weather</button>
+      <button class="tab-btn" data-tab="pollution">Pollution</button>
+      <button class="tab-btn" data-tab="housing">Housing</button>
+    </div>
+
+    <div id="tabPanels">
+      <div class="tab-panel" data-panel="summary">
+        <div id="summaryBody"><div class="empty-state">Search a location to see constituency, council, and political details here.</div></div>
+        <div class="ai-block">
+          <div class="section-title" style="margin-bottom:8px;">AI summary</div>
+          <div class="headline-sub">Turns everything gathered across all tabs into a short plain-English write-up, generated live by Claude. Uses a small amount of your normal Claude.ai usage each time you press it.</div>
+          <button id="aiSummaryBtn" class="search-btn" style="margin-top:12px; width:100%;" disabled>Search a location first</button>
+          <div class="ai-output" id="aiSummaryOutput"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="crime">
+        <div id="crimeBody"><div class="empty-state">Search a location to see crime stats and trends here.</div></div>
+        <div class="council-section">
+          <div class="section-title">Crime heatmap (current map view)</div>
+          <div class="headline-sub">Independent of your pin — scans whatever's currently visible on the map. Turn the layer on/off any time from the layers icon, top right of the map; it stays on while you switch tabs.</div>
+          <button id="crimeHeatRefresh" class="search-btn" style="margin:12px 0 6px; width:100%;">Load heatmap for this view</button>
+          <div id="crimeCatTableWrap"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="weather">
+        <div id="weatherBody"><div class="empty-state">Search a location to see weather stats and trends here.</div></div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="pollution">
+        <div id="pollutionBody"><div class="empty-state">Search a location to see air quality here.</div></div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="housing">
+        <div class="block">
+          <div class="block-title">Filters</div>
+          <div class="filters-grid">
+            <label>Min price <input type="number" id="filterMinPrice" placeholder="£ no min"></label>
+            <label>Max price <input type="number" id="filterMaxPrice" placeholder="£ no max"></label>
+            <label>Bedrooms <select id="filterBeds">
+              <option value="">Any</option><option value="1">1+</option><option value="2">2+</option>
+              <option value="3">3+</option><option value="4">4+</option><option value="5">5+</option>
+            </select></label>
+            <label>Radius <select id="filterRadius">
+              <option value="0.25">1/4 mile</option><option value="0.5" selected>1/2 mile</option>
+              <option value="1">1 mile</option><option value="3">3 miles</option><option value="5">5 miles</option>
+            </select></label>
+          </div>
+          <div class="filter-types">
+            <label><input type="checkbox" class="filter-type-cb" value="detached" checked> Detached</label>
+            <label><input type="checkbox" class="filter-type-cb" value="semi-detached" checked> Semi-detached</label>
+            <label><input type="checkbox" class="filter-type-cb" value="terraced" checked> Terraced</label>
+            <label><input type="checkbox" class="filter-type-cb" value="flat" checked> Flat/apartment</label>
+            <label><input type="checkbox" class="filter-type-cb" value="bungalow" checked> Bungalow</label>
+            <label><input type="checkbox" class="filter-type-cb" value="land" > Land</label>
+          </div>
+          <select id="filterSort" class="full-select">
+            <option value="newest">Sort: newest listed</option>
+            <option value="price-asc">Sort: price, low to high</option>
+            <option value="price-desc">Sort: price, high to low</option>
+          </select>
+          <button id="applyFiltersBtn" class="search-btn" style="width:100%;">Apply filters</button>
+        </div>
+        <div id="listingsWrap"></div>
+
+        <div class="divider-label">Land Registry price history</div>
+        <div id="landRegistryBody"><div class="empty-state">Search a location to see historic sold prices and the appreciating/depreciating trend here.</div></div>
+
+        <div class="divider-label">Local development watch</div>
+        <div id="planningBody"><div class="empty-state">Search a location to see nearby protective designations and ready-made links for checking planning activity yourself.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const map = L.map('map', {zoomControl:false}).setView([54.5, -3.0], 6);
+L.control.zoom({position:'bottomright'}).addTo(map);
+
+const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+});
+const outdoorsLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17
+});
+const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+});
+lightLayer.addTo(map);
+
+const crimeSpotLayerGroup = L.layerGroup();
+
+L.control.layers(
+  { 'Light (readable)': lightLayer, 'Outdoors (rivers & footpaths)': outdoorsLayer, 'Dark': darkLayer },
+  { 'Crime heatmap': crimeSpotLayerGroup },
+  { position:'topright', collapsed:false }
+).addTo(map);
+
+L.control.scale({position:'bottomleft', metric:true, imperial:true, maxWidth:150}).addTo(map);
+
+let marker = null;
+let constituencyLayer = null;
+let constituencyGeoJSON = null;
+let postcodeCircle = null;
+let lastResults = null;
+let rawCrimeData = null;
+let crimeCategories = [];
+
+const CRIME_MIN_ZOOM = 13;
+
+/* ---------- Map status banner ---------- */
+
+function showMapStatus(msg, autoHide){
+  const el = document.getElementById('mapStatus');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(showMapStatus._t);
+  if(autoHide){
+    showMapStatus._t = setTimeout(() => el.classList.add('hidden'), 5000);
+  }
+}
+
+/* ---------- Tabs ---------- */
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    this.classList.add('active');
+    document.querySelector(`.tab-panel[data-panel="${this.dataset.tab}"]`).classList.remove('hidden');
+    // Charts built while their tab was hidden get created at zero size and never fix
+    // themselves — force a resize now that the tab (and its real width) is visible.
+    if(this.dataset.tab === 'housing' && hpiChartInstance){
+      requestAnimationFrame(() => hpiChartInstance.resize());
+    }
+  });
+});
+
+/* ---------- Crime category table (built once, counts filled in after a search) ---------- */
+
+async function loadCrimeCategories(){
+  try{
+    const r = await fetch('https://data.police.uk/api/crime-categories');
+    if(!r.ok) return;
+    crimeCategories = (await r.json()).filter(c => c.url !== 'all-crime');
+  } catch(e){}
+  buildCrimeCategoryTable();
+}
+loadCrimeCategories();
+
+function buildCrimeCategoryTable(){
+  const wrap = document.getElementById('crimeCatTableWrap');
+  if(!crimeCategories.length){
+    wrap.innerHTML = `<div class="err" style="margin-top:10px;">Could not load the list of crime categories right now.</div>`;
+    return;
+  }
+  const rows = crimeCategories.map(c => `
+    <tr data-cat="${c.url}">
+      <td><input type="checkbox" class="crime-cat-cb" value="${c.url}" checked></td>
+      <td>${c.name}</td>
+      <td class="cat-count">—</td>
+    </tr>`).join('');
+  wrap.innerHTML = `<table class="crime-table"><thead><tr><th></th><th>Category</th><th>Constituency count</th></tr></thead><tbody>${rows}</tbody></table>`;
+  wrap.querySelectorAll('.crime-cat-cb').forEach(cb => cb.addEventListener('change', function(){
+    if(rawCrimeData) renderCrimeSpots(rawCrimeData, getCheckedCategories());
+  }));
+}
+
+function getCheckedCategories(){
+  return new Set([...document.querySelectorAll('.crime-cat-cb:checked')].map(cb => cb.value));
+}
+
+function updateCrimeCategoryCounts(areaCrimeList){
+  const counts = {};
+  (areaCrimeList || []).forEach(c => { counts[c.category] = (counts[c.category]||0) + 1; });
+  document.querySelectorAll('#crimeCatTableWrap tr[data-cat]').forEach(tr => {
+    const cat = tr.getAttribute('data-cat');
+    tr.querySelector('.cat-count').textContent = counts[cat] || 0;
+  });
+}
+
+/* ---------- Crime spot markers ---------- */
+
+function groupCrimesByLocation(crimes){
+  const groups = {};
+  crimes.forEach(c => {
+    if(!c.location || !c.location.latitude || !c.location.longitude) return;
+    const key = c.location.latitude + ',' + c.location.longitude;
+    if(!groups[key]) groups[key] = { lat: parseFloat(c.location.latitude), lng: parseFloat(c.location.longitude), items: [] };
+    groups[key].items.push(c.category);
+  });
+  return Object.values(groups);
+}
+
+function renderCrimeSpots(crimes, allowedCategories){
+  crimeSpotLayerGroup.clearLayers();
+  const filtered = crimes.filter(c => allowedCategories.has(c.category));
+  const spots = groupCrimesByLocation(filtered);
+  const maxCount = spots.reduce((m,s) => Math.max(m, s.items.length), 1);
+
+  spots.forEach(spot => {
+    const count = spot.items.length;
+    const intensity = count / maxCount;
+    const color = intensity > 0.66 ? '#8B2E1F' : intensity > 0.33 ? '#D9A54B' : '#3A6E52';
+    const size = 16 + Math.round(intensity * 20);
+    const icon = L.divIcon({
+      className: 'crime-spot-icon',
+      html: `<div style="width:${size}px;height:${size}px;font-size:${Math.max(9,size*0.4)}px;background:${color};">${count}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2]
+    });
+    const marker = L.marker([spot.lat, spot.lng], { icon });
+
+    const byType = {};
+    spot.items.forEach(cat => { byType[cat] = (byType[cat]||0) + 1; });
+    const breakdown = Object.entries(byType).sort((a,b) => b[1]-a[1])
+      .map(([k,v]) => `${v} × ${k.replace(/-/g,' ')}`).join('<br>');
+    marker.bindTooltip(
+      `<div class="spot-tooltip"><strong>${count} crime${count>1?'s':''} at this point</strong><br>${breakdown}</div>`,
+      { direction:'top', offset:[0, -size/2] }
+    );
+    crimeSpotLayerGroup.addLayer(marker);
+  });
+
+  return spots.length;
+}
+
+async function refreshCrimeHeatmap(){
+  const z = map.getZoom();
+  if(z < CRIME_MIN_ZOOM){
+    showMapStatus('Zoom in past street level to load a crime heatmap for this view.', true);
+    return;
+  }
+  showMapStatus('Loading crime incidents for this view…');
+  const b = map.getBounds();
+  const poly = [
+    [b.getNorth(), b.getWest()], [b.getNorth(), b.getEast()],
+    [b.getSouth(), b.getEast()], [b.getSouth(), b.getWest()]
+  ].map(p => p[0].toFixed(4)+','+p[1].toFixed(4)).join(':');
+
+  try{
+    const r = await fetch(`https://data.police.uk/api/crimes-street/all-crime?poly=${poly}`);
+    if(!r.ok){ showMapStatus('Could not load crime data (try zooming in a little more).', true); return; }
+    rawCrimeData = await r.json();
+    const spotCount = renderCrimeSpots(rawCrimeData, getCheckedCategories());
+    if(!map.hasLayer(crimeSpotLayerGroup)) map.addLayer(crimeSpotLayerGroup);
+    showMapStatus(`${rawCrimeData.length} incidents across ${spotCount} spots in this view. Untick categories in the Crime tab to filter.`, true);
+  } catch(e){ showMapStatus('Could not load crime data for this view.', true); }
+}
+
+document.getElementById('crimeHeatRefresh').addEventListener('click', refreshCrimeHeatmap);
+
+map.on('overlayadd', function(e){
+  if(e.name === 'Crime heatmap'){
+    if(map.getZoom() < CRIME_MIN_ZOOM){
+      showMapStatus('Zoom in past street level, then turn the crime heatmap back on.', true);
+      map.removeLayer(crimeSpotLayerGroup);
+      return;
+    }
+    if(!rawCrimeData) refreshCrimeHeatmap();
+  }
+});
+
+/* ---------- Small helpers ---------- */
+
+function gauge(label, value, max, displayValue, colorClass){
+  const pct = Math.min(100, Math.max(4, (value/max)*100));
+  const colors = {good:'var(--good)', mid:'var(--mid)', bad:'var(--bad)'};
+  return `<div class="gauge-row">
+    <div class="gauge-label">${label}</div>
+    <div class="gauge-track"><div class="gauge-fill" style="width:${pct}%; background:${colors[colorClass]}"></div></div>
+    <div class="gauge-value">${displayValue}</div>
+  </div>`;
+}
+
+function pm25Rating(v){
+  if(v == null) return {c:'mid', t:'No data'};
+  if(v <= 10) return {c:'good', t:'Good'};
+  if(v <= 25) return {c:'mid', t:'Moderate'};
+  return {c:'bad', t:'Poor'};
+}
+
+function trendLine(label, oldVal, newVal, pct, betterIsDown){
+  if(pct == null || oldVal == null || newVal == null){
+    return `<div class="trend-row"><span>${label}</span><span class="tv trend-na">not enough data</span></div>`;
+  }
+  const dir = pct > 2 ? 'up' : pct < -2 ? 'down' : 'flat';
+  const goodBad = betterIsDown ? (dir==='down'?'trend-down':dir==='up'?'trend-up':'trend-flat') : (dir==='up'?'trend-down':dir==='down'?'trend-up':'trend-flat');
+  const arrow = dir==='up' ? '▲' : dir==='down' ? '▼' : '—';
+  return `<div class="trend-row"><span>${label}</span><span class="tv ${goodBad}">${arrow} ${Math.abs(pct)}%</span></div>`;
+}
+
+function slugifyRegion(name){
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/* ---------- Pending pin ---------- */
+
+function showPendingPin(lat, lng){
+  const pinBar = document.getElementById('pinBar');
+  pinBar.innerHTML = `
+    <div class="coord" style="margin-bottom:8px;">${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
+    <button id="searchAreaBtn" class="search-btn" style="width:100%;">Search this area →</button>`;
+  document.getElementById('searchAreaBtn').addEventListener('click', function(){
+    loadStats(lat, lng);
+  });
+}
+
+map.on('click', function(e){
+  const { lat, lng } = e.latlng;
+  if(marker) map.removeLayer(marker);
+  marker = L.circleMarker([lat,lng], {radius:8, color:'#E4C87A', fillColor:'#E4C87A', fillOpacity:0.9, weight:2}).addTo(map);
+  showPendingPin(lat, lng);
+});
+
+/* ---------- Boundary + postcode lookups ---------- */
+
+async function loadConstituencyBoundary(lat, lng){
+  try{
+    const url = `https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Westminster_Parliamentary_Constituencies_July_2024_Boundaries_UK_BSC/FeatureServer/0/query?geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&f=geojson`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const gj = await r.json();
+    if(!gj.features || !gj.features.length) return null;
+    constituencyGeoJSON = gj;
+
+    if(constituencyLayer) map.removeLayer(constituencyLayer);
+    constituencyLayer = L.geoJSON(gj, {
+      style: { color:'#E4C87A', weight:2, fillColor:'#E4C87A', fillOpacity:0.1 }
+    }).addTo(map);
+    map.fitBounds(constituencyLayer.getBounds(), { maxZoom: 11, padding:[20,20] });
+
+    const props = gj.features[0].properties;
+    const nameKey = Object.keys(props).find(k => /NM$/i.test(k) && !/CD/i.test(k));
+    return nameKey ? props[nameKey] : null;
+  } catch(e){ return null; }
+}
+
+async function loadPostcodeInfo(lat, lng){
+  try{
+    const r = await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`);
+    if(!r.ok) return null;
+    const data = await r.json();
+    if(!data.result || !data.result.length) return null;
+    const p = data.result[0];
+
+    if(postcodeCircle) map.removeLayer(postcodeCircle);
+    postcodeCircle = L.circle([lat,lng], { radius:350, color:'#6FB98F', weight:1.5, fillColor:'#6FB98F', fillOpacity:0.15, dashArray:'4,4' }).addTo(map);
+
+    return { postcode: p.postcode, ward: p.admin_ward, district: p.admin_district };
+  } catch(e){ return null; }
+}
+
+async function fetchMpInfo(constituencyName){
+  if(!constituencyName) return null;
+  try{
+    const r = await fetch(`https://members-api.parliament.uk/api/Location/Constituency/Search?searchText=${encodeURIComponent(constituencyName)}&skip=0&take=1`);
+    if(!r.ok) return null;
+    const data = await r.json();
+    const item = data && data.items && data.items[0] && data.items[0].value;
+    if(!item) return null;
+    const rep = item.currentRepresentation && item.currentRepresentation.member && item.currentRepresentation.member.value;
+    return {
+      mpName: rep && rep.nameDisplayAs ? rep.nameDisplayAs : null,
+      party: rep && rep.latestParty ? rep.latestParty.name : null,
+      electorate: item.electorate != null ? item.electorate : null
+    };
+  } catch(e){ return null; }
+}
+
+/* ---------- Air quality + weather, with a 5-vs-prior-5-year trend ---------- */
+
+async function fetchAirAndWeather(lat, lng){
+  const out = { air: null, weather: null, weatherTrend: null };
+
+  try{
+    const r = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=pm2_5,pm10,nitrogen_dioxide,ozone`);
+    if(r.ok){ out.air = (await r.json()).current; }
+  } catch(e){}
+
+  try{
+    const end = new Date(); end.setDate(end.getDate() - 7);
+    const endStr = end.toISOString().slice(0,10);
+    const start10y = new Date(end); start10y.setFullYear(start10y.getFullYear() - 10);
+    const start10yStr = start10y.toISOString().slice(0,10);
+    const start1y = new Date(end); start1y.setFullYear(start1y.getFullYear() - 1);
+    const start1yStr = start1y.toISOString().slice(0,10);
+
+    const [dailyRes, hourlyRes] = await Promise.all([
+      fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start10yStr}&end_date=${endStr}&daily=precipitation_sum,sunshine_duration&timezone=auto`),
+      fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${start1yStr}&end_date=${endStr}&hourly=relative_humidity_2m&timezone=auto`)
+    ]);
+
+    if(dailyRes.ok && hourlyRes.ok){
+      const daily = (await dailyRes.json()).daily;
+      const hourly = (await hourlyRes.json()).hourly;
+
+      function summarize(startIdx, endIdx){
+        let rain=0, sunHours=0, sunnyDays=0, count=0;
+        for(let i=startIdx;i<endIdx;i++){
+          const p = daily.precipitation_sum[i], s = daily.sunshine_duration[i];
+          if(p != null && p >= 1) rain++;
+          if(s != null){ const hrs = s/3600; sunHours += hrs; if(hrs >= 6) sunnyDays++; }
+          count++;
+        }
+        const yrs = count / 365.25;
+        return { rainyDaysPerYear: rain/yrs, sunnyDaysPerYear: sunnyDays/yrs, sunHoursPerYear: sunHours/yrs };
+      }
+
+      const n = daily.time.length;
+      const half = Math.floor(n/2);
+      const older = summarize(0, half);
+      const recent = summarize(half, n);
+
+      const humidityVals = hourly.relative_humidity_2m.filter(v => v != null);
+      const avgHumidity = humidityVals.reduce((a,b)=>a+b,0) / humidityVals.length;
+
+      out.weather = {
+        rainyDaysPerYear: Math.round(recent.rainyDaysPerYear),
+        sunnyDaysPerYear: Math.round(recent.sunnyDaysPerYear),
+        sunHoursPerYear: Math.round(recent.sunHoursPerYear),
+        avgHumidity: Math.round(avgHumidity)
+      };
+
+      function pctChange(a,b){ return (b===0||b==null) ? null : Math.round(((a-b)/b)*100); }
+      out.weatherTrend = {
+        sunnyDaysOld: Math.round(older.sunnyDaysPerYear), sunnyDaysNew: Math.round(recent.sunnyDaysPerYear),
+        sunnyDaysPct: pctChange(recent.sunnyDaysPerYear, older.sunnyDaysPerYear),
+        rainyDaysOld: Math.round(older.rainyDaysPerYear), rainyDaysNew: Math.round(recent.rainyDaysPerYear),
+        rainyDaysPct: pctChange(recent.rainyDaysPerYear, older.rainyDaysPerYear),
+        sunHoursOld: Math.round(older.sunHoursPerYear), sunHoursNew: Math.round(recent.sunHoursPerYear),
+        sunHoursPct: pctChange(recent.sunHoursPerYear, older.sunHoursPerYear)
+      };
+    }
+  } catch(e){}
+
+  return out;
+}
+
+/* ---------- Crime trend ---------- */
+
+async function fetchCrimeCountForMonth(baseQuery, monthStr){
+  try{
+    const r = await fetch(`${baseQuery}&date=${monthStr}`);
+    if(r.ok) return (await r.json()).length;
+  } catch(e){}
+  return null;
+}
+
+async function fetchCrimeTrend(baseQuery){
+  const now = new Date(); now.setDate(now.getDate() - 45);
+  const fmt = d => d.toISOString().slice(0,7);
+  const recentMonth = fmt(now);
+  const d5 = new Date(now); d5.setFullYear(d5.getFullYear() - 5);
+  const d10 = new Date(now); d10.setFullYear(d10.getFullYear() - 10);
+
+  const [recent, five, ten] = await Promise.all([
+    fetchCrimeCountForMonth(baseQuery, recentMonth),
+    fetchCrimeCountForMonth(baseQuery, fmt(d5)),
+    fetchCrimeCountForMonth(baseQuery, fmt(d10))
+  ]);
+  function pctChange(a,b){ return (b==null||a==null||b===0) ? null : Math.round(((a-b)/b)*100); }
+  return { recent, five, ten, vsFivePct: pctChange(recent, five), vsTenPct: pctChange(recent, ten) };
+}
+
+/* ---------- Constituency-wide polygon helpers ---------- */
+
+function extractMainRing(geometry){
+  let rings = [];
+  if(geometry.type === 'Polygon'){ rings = [geometry.coordinates[0]]; }
+  else if(geometry.type === 'MultiPolygon'){ rings = geometry.coordinates.map(poly => poly[0]); }
+  rings.sort((a,b) => b.length - a.length);
+  return rings[0] || [];
+}
+function simplifyRing(ring, maxPoints){
+  if(ring.length <= maxPoints) return ring;
+  const step = Math.ceil(ring.length / maxPoints);
+  return ring.filter((_, i) => i % step === 0);
+}
+function ringToPolyParam(ring){
+  return ring.map(c => c[1].toFixed(4)+','+c[0].toFixed(4)).join(':');
+}
+
+async function fetchConstituencyWideStats(){
+  const out = { crime: null, crimeTrend: null, air: null, weather: null, weatherTrend: null };
+  if(!constituencyGeoJSON || !constituencyLayer) return out;
+
+  let polyParam = null;
+  try{
+    const ring = simplifyRing(extractMainRing(constituencyGeoJSON.features[0].geometry), 120);
+    polyParam = ringToPolyParam(ring);
+    const r = await fetch(`https://data.police.uk/api/crimes-street/all-crime?poly=${polyParam}`);
+    if(r.ok){ out.crime = await r.json(); }
+  } catch(e){}
+
+  if(polyParam){
+    out.crimeTrend = await fetchCrimeTrend(`https://data.police.uk/api/crimes-street/all-crime?poly=${polyParam}`);
+  }
+
+  try{
+    const c = constituencyLayer.getBounds().getCenter();
+    const aw = await fetchAirAndWeather(c.lat, c.lng);
+    out.air = aw.air; out.weather = aw.weather; out.weatherTrend = aw.weatherTrend;
+  } catch(e){}
+
+  return out;
+}
+
+/* ---------- Land Registry: council-wide House Price Index, full yearly series + by-type ---------- */
+
+function findYearlyValue(yearly, yearsAgo, latestYear){
+  const target = latestYear - yearsAgo;
+  let best = null, bestDiff = Infinity;
+  yearly.forEach(p => { const diff = Math.abs(parseInt(p.year) - target); if(diff < bestDiff){ bestDiff = diff; best = p; } });
+  return best;
+}
+
+async function fetchHpiFull(regionName){
+  if(!regionName) return null;
+  const slug = slugifyRegion(regionName);
+  try{
+    const end = new Date(); end.setMonth(end.getMonth() - 3);
+    const endStr = end.toISOString().slice(0,10);
+    const start = new Date(end); start.setFullYear(start.getFullYear() - 15);
+    const startStr = start.toISOString().slice(0,10);
+    const props = 'housePriceIndex,refPeriodStart,averagePrice,averagePriceDetached,averagePriceSemiDetached,averagePriceTerraced,averagePriceFlatMaisonette';
+    const url = `https://landregistry.data.gov.uk/data/ukhpi/region/${slug}.json?_pageSize=300&min-refPeriodStart=${startStr}&max-refPeriodStart=${endStr}&_properties=${props}`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const json = await r.json();
+    const items = (json.result && json.result.items) || (json.result && json.result.primaryTopic && json.result.primaryTopic.items) || [];
+    const clean = items.filter(i => i.refPeriodStart && i.averagePrice != null)
+      .sort((a,b) => new Date(a.refPeriodStart) - new Date(b.refPeriodStart));
+    if(!clean.length) return null;
+
+    const byYear = {};
+    clean.forEach(i => { byYear[i.refPeriodStart.slice(0,4)] = i; });
+    const years = Object.keys(byYear).sort();
+    const yearly = years.map(y => ({ year: y, price: byYear[y].averagePrice }));
+
+    const latestItem = clean[clean.length - 1];
+    const latestYear = parseInt(latestItem.refPeriodStart.slice(0,4));
+
+    function pct(a,b){ return (a==null||b==null||b===0) ? null : Math.round(((a-b)/b)*100); }
+    const fiveEntry = findYearlyValue(yearly, 5, latestYear);
+    const tenEntry = findYearlyValue(yearly, 10, latestYear);
+
+    const byTypeRaw = {
+      detached: latestItem.averagePriceDetached != null ? latestItem.averagePriceDetached : null,
+      semiDetached: latestItem.averagePriceSemiDetached != null ? latestItem.averagePriceSemiDetached : null,
+      terraced: latestItem.averagePriceTerraced != null ? latestItem.averagePriceTerraced : null,
+      flat: latestItem.averagePriceFlatMaisonette != null ? latestItem.averagePriceFlatMaisonette : null
+    };
+    const hasByType = Object.values(byTypeRaw).some(v => v != null);
+
+    return {
+      yearly,
+      latestPrice: latestItem.averagePrice,
+      latestDate: latestItem.refPeriodStart,
+      fivePrice: fiveEntry ? fiveEntry.price : null,
+      tenPrice: tenEntry ? tenEntry.price : null,
+      vsFivePct: pct(latestItem.averagePrice, fiveEntry ? fiveEntry.price : null),
+      vsTenPct: pct(latestItem.averagePrice, tenEntry ? tenEntry.price : null),
+      byType: hasByType ? byTypeRaw : null
+    };
+  } catch(e){ return null; }
+}
+
+/* ---------- ONS inflation (CPI) series, fetched once and cached — same for the whole UK regardless of location ---------- */
+
+let inflationSeriesCache = null;
+
+async function fetchInflationSeries(){
+  try{
+    const r = await fetch('https://api.ons.gov.uk/timeseries/D7BT/dataset/MM23/data');
+    if(!r.ok) return null;
+    const json = await r.json();
+    const months = json.months || [];
+    if(!months.length) return null;
+    const byYear = {};
+    months.forEach(m => {
+      const val = parseFloat(m.value);
+      if(!m.date || isNaN(val)) return;
+      const year = m.date.slice(0,4);
+      if(!byYear[year]) byYear[year] = [];
+      byYear[year].push(val);
+    });
+    const yearly = {};
+    Object.keys(byYear).forEach(y => { yearly[y] = byYear[y].reduce((a,b)=>a+b,0) / byYear[y].length; });
+    return yearly;
+  } catch(e){ return null; }
+}
+
+async function getInflationSeries(){
+  if(inflationSeriesCache) return inflationSeriesCache;
+  inflationSeriesCache = await fetchInflationSeries();
+  return inflationSeriesCache;
+}
+
+/* ---------- HPI chart: nominal vs inflation-adjusted line, toggleable to a by-type bar chart ---------- */
+
+let hpiChartInstance = null;
+let hpiShowingByType = false;
+
+function renderHpiLineChart(yearly, inflationYearly){
+  const canvas = document.getElementById('hpiChart');
+  if(!canvas) return;
+  const labels = yearly.map(p => p.year);
+  const nominal = yearly.map(p => p.price);
+  const latestYearKey = yearly[yearly.length-1].year;
+  const latestCpi = inflationYearly ? inflationYearly[latestYearKey] : null;
+  const real = (inflationYearly && latestCpi) ? yearly.map(p => {
+    const cpi = inflationYearly[p.year];
+    return cpi ? Math.round(p.price * (latestCpi / cpi)) : null;
+  }) : null;
+
+  const datasets = [
+    { label: 'Nominal average price', data: nominal, borderColor: '#E4C87A', backgroundColor: 'transparent', tension: 0.2 }
+  ];
+  if(real){
+    datasets.push({ label: "Inflation-adjusted (today's money)", data: real, borderColor: '#6FB98F', backgroundColor: 'transparent', tension: 0.2, borderDash: [5,4] });
+  }
+
+  if(hpiChartInstance) hpiChartInstance.destroy();
+  hpiChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#EDEEE6', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { color: '#24382B' } },
+        y: { ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
+      }
+    }
+  });
+}
+
+function renderHpiTypeChart(byType){
+  const canvas = document.getElementById('hpiChart');
+  if(!canvas) return;
+  const labels = ['Flat', 'Terraced', 'Semi-detached', 'Detached'];
+  const data = [byType.flat, byType.terraced, byType.semiDetached, byType.detached];
+  if(hpiChartInstance) hpiChartInstance.destroy();
+  hpiChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Average price', data, backgroundColor: ['#6FB98F','#D9A54B','#E4C87A','#C1603F'] }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
+      }
+    }
+  });
+}
+
+function drawHpiChart(hpi, inflationYearly){
+  hpiShowingByType = false;
+  if(typeof Chart === 'undefined'){
+    const canvas = document.getElementById('hpiChart');
+    if(canvas) canvas.outerHTML = '<div class="err">The chart library didn\'t load — try refreshing the page.</div>';
+    return;
+  }
+  if(hpi && hpi.yearly && hpi.yearly.length){
+    renderHpiLineChart(hpi.yearly, inflationYearly);
+  }
+  const btn = document.getElementById('hpiToggleBtn');
+  if(!btn) return;
+  if(hpi && hpi.byType){
+    btn.style.display = 'block';
+    btn.textContent = 'Show by property type →';
+    btn.onclick = function(){
+      hpiShowingByType = !hpiShowingByType;
+      if(hpiShowingByType){
+        renderHpiTypeChart(hpi.byType);
+        btn.textContent = '← Back to price trend';
+      } else {
+        renderHpiLineChart(hpi.yearly, inflationYearly);
+        btn.textContent = 'Show by property type →';
+      }
+    };
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+
+
+async function fetchRecentSales(postcode){
+  if(!postcode) return null;
+  try{
+    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?propertyAddress.postcode=${encodeURIComponent(postcode)}&_pageSize=50&_properties=pricePaid,transactionDate,propertyAddress.paon,propertyAddress.street`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const json = await r.json();
+    const items = (json.result && json.result.items) || [];
+    return items.map(i => ({
+      price: i.pricePaid,
+      date: i.transactionDate,
+      paon: i['propertyAddress.paon'] || (i.propertyAddress && i.propertyAddress.paon) || '',
+      street: i['propertyAddress.street'] || (i.propertyAddress && i.propertyAddress.street) || ''
+    })).filter(s => s.price != null)
+      .sort((a,b) => new Date(b.date) - new Date(a.date));
+  } catch(e){ return null; }
+}
+
+/* ---------- Local development watch: stable planning.data.gov.uk designations ---------- */
+
+async function fetchDesignations(postcode){
+  if(!postcode) return null;
+  try{
+    const url = `https://www.planning.data.gov.uk/entity.json?q=${encodeURIComponent(postcode)}&dataset=conservation-area&dataset=green-belt&dataset=article-4-direction&limit=20`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const json = await r.json();
+    return json.entities || [];
+  } catch(e){ return null; }
+}
+
+/* ---------- Housing listings plug-in point (no live source connected yet) ---------- */
+
+function getActiveFilters(){
+  return {
+    minPrice: document.getElementById('filterMinPrice').value || null,
+    maxPrice: document.getElementById('filterMaxPrice').value || null,
+    minBeds: document.getElementById('filterBeds').value || null,
+    radius: document.getElementById('filterRadius').value,
+    types: [...document.querySelectorAll('.filter-type-cb:checked')].map(cb => cb.value),
+    sort: document.getElementById('filterSort').value
+  };
+}
+
+// This is the plug-in point for a real listings source later (e.g. a licensed
+// Rightmove/Zoopla partner feed, or a paid property-data API). Call
+// renderListings(listings) with an array of {price, beds, type, address, url}
+// objects once a real source is connected — everything else is already wired up.
+function renderListings(listings){
+  const wrap = document.getElementById('listingsWrap');
+  if(!listings || !listings.length){
+    wrap.innerHTML = `<div class="council-section">
+      <div class="section-title">Listings</div>
+      <div class="headline-sub">Live listings aren't connected yet. Filters above are fully functional and ready — once a real data source is wired in, matching results will render here as cards automatically.</div>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = listings.map(l => `<div class="council-section">
+    <div class="headline-stat" style="font-size:22px;">£${l.price ? l.price.toLocaleString() : '—'}</div>
+    <div class="headline-sub">${l.beds || '—'} bed ${l.type || ''} — ${l.address || ''}</div>
+  </div>`).join('');
+}
+renderListings([]);
+
+document.getElementById('applyFiltersBtn').addEventListener('click', function(){
+  const filters = getActiveFilters();
+  renderListings([]);
+  showMapStatus('Filters saved (no live listings source connected yet).', true);
+});
+
+/* ---------- Main search ---------- */
+
+async function loadStats(lat, lng){
+  document.getElementById('pinBar').innerHTML = `<div class="coord">Searching ${lat.toFixed(4)}, ${lng.toFixed(4)}…</div>`;
+  ['summaryBody','crimeBody','weatherBody','pollutionBody','landRegistryBody','planningBody'].forEach(id => {
+    document.getElementById(id).innerHTML = `<div class="empty-state">Loading…</div>`;
+  });
+
+  const results = { crime: null, crimeTrend: null, air: null, weather: null, weatherTrend: null,
+                     constituency: null, place: null, mp: null,
+                     areaCrime: null, areaCrimeTrend: null, areaAir: null, areaWeather: null, areaWeatherTrend: null,
+                     hpi: null, recentSales: null, designations: null };
+
+  const [constituencyName, placeInfo] = await Promise.all([
+    loadConstituencyBoundary(lat, lng),
+    loadPostcodeInfo(lat, lng)
+  ]);
+  results.constituency = constituencyName;
+  results.place = placeInfo;
+  results.mp = await fetchMpInfo(constituencyName);
+
+  const pointBase = `https://data.police.uk/api/crimes-street/all-crime?lat=${lat}&lng=${lng}`;
+  try{
+    const r = await fetch(pointBase);
+    if(r.ok){ results.crime = await r.json(); }
+  } catch(e){}
+  results.crimeTrend = await fetchCrimeTrend(pointBase);
+
+  const pinStats = await fetchAirAndWeather(lat, lng);
+  results.air = pinStats.air;
+  results.weather = pinStats.weather;
+  results.weatherTrend = pinStats.weatherTrend;
+
+  if(constituencyName){
+    const areaStats = await fetchConstituencyWideStats();
+    results.areaCrime = areaStats.crime;
+    results.areaCrimeTrend = areaStats.crimeTrend;
+    results.areaAir = areaStats.air;
+    results.areaWeather = areaStats.weather;
+    results.areaWeatherTrend = areaStats.weatherTrend;
+  }
+
+  const councilName = results.place ? results.place.district : null;
+  const postcode = results.place ? results.place.postcode : null;
+  results.hpi = await fetchHpiFull(councilName);
+  results.inflationYearly = await getInflationSeries();
+  results.recentSales = await fetchRecentSales(postcode);
+  results.designations = await fetchDesignations(postcode);
+
+  lastResults = results;
+  render(lat, lng, results);
+}
+
+/* ---------- Render ---------- */
+
+function render(lat, lng, results){
+  document.getElementById('pinBar').innerHTML = `<div class="coord">${lat.toFixed(4)}, ${lng.toFixed(4)} — click the map to search a different pin</div>`;
+
+  // Summary
+  let summaryHtml = `<div class="location-block">`;
+  if(results.constituency){
+    summaryHtml += `<div class="location-constituency">${results.constituency}</div>`;
+  } else {
+    summaryHtml += `<div class="location-constituency" style="color:var(--ink-dim); font-size:15px;">Constituency boundary not found</div>`;
+  }
+  if(results.place){
+    summaryHtml += `<div class="location-sub">Council: ${results.place.district || '—'}<br>Ward: ${results.place.ward || '—'}<br>Nearest postcode: ${results.place.postcode || '—'}</div>`;
+  }
+  summaryHtml += `</div>`;
+
+  summaryHtml += `<div class="block"><div class="block-title">Political representation</div>`;
+  if(results.mp && (results.mp.mpName || results.mp.electorate != null)){
+    if(results.mp.mpName){
+      summaryHtml += `<div class="headline-stat" style="font-size:20px;">${results.mp.mpName}</div>`;
+      summaryHtml += `<div class="headline-sub">${results.mp.party || 'Party unavailable'}, current MP for ${results.constituency}</div>`;
+    } else {
+      summaryHtml += `<div class="err">MP name unavailable right now, though the constituency lookup worked.</div>`;
+    }
+    if(results.mp.electorate != null){
+      summaryHtml += `<div class="headline-sub" style="margin-top:10px;">Registered electorate: ${results.mp.electorate.toLocaleString()} (not the same as total population)</div>`;
+    }
+  } else {
+    summaryHtml += `<div class="err">Political data unavailable for this constituency right now.</div>`;
+  }
+  summaryHtml += `</div>`;
+  summaryHtml += `<div class="note">Gold outline on the map = the parliamentary constituency. Green dashed circle = an approximate postcode zone. Trend arrows elsewhere: green = improving, red = worsening.</div>`;
+  document.getElementById('summaryBody').innerHTML = summaryHtml;
+
+  const aiBtn = document.getElementById('aiSummaryBtn');
+  aiBtn.disabled = false;
+  aiBtn.textContent = 'Generate AI summary';
+
+  // Crime
+  let crimeHtml = '';
+  if(results.constituency){
+    crimeHtml += `<div class="council-section"><div class="section-title">${results.constituency} — constituency-wide</div>`;
+    if(results.areaCrime){
+      crimeHtml += `<div class="headline-stat">${results.areaCrime.length.toLocaleString()}</div><div class="headline-sub">reported crimes across the whole constituency, most recent month on file</div>`;
+    } else {
+      crimeHtml += `<div class="err">Constituency-wide crime total unavailable.</div>`;
+    }
+    if(results.areaCrimeTrend){
+      const t = results.areaCrimeTrend;
+      crimeHtml += `<div style="margin-top:10px;">` + trendLine('vs 5 years ago', t.five, t.recent, t.vsFivePct, true) + trendLine('vs 10 years ago', t.ten, t.recent, t.vsTenPct, true) + `</div>`;
+    }
+    crimeHtml += `</div>`;
+  }
+  crimeHtml += `<div class="divider-label">At your exact pin</div>`;
+  crimeHtml += `<div class="block"><div class="block-title">Crime</div>`;
+  if(results.crime){
+    crimeHtml += `<div class="headline-stat">${results.crime.length}</div><div class="headline-sub">reported crimes within ~1 mile, most recent month on file</div>`;
+  } else {
+    crimeHtml += `<div class="err">Crime data unavailable for this point.</div>`;
+  }
+  if(results.crimeTrend){
+    const t = results.crimeTrend;
+    crimeHtml += `<div style="margin-top:10px;">` + trendLine('vs 5 years ago', t.five, t.recent, t.vsFivePct, true) + trendLine('vs 10 years ago', t.ten, t.recent, t.vsTenPct, true) + `</div>`;
+  }
+  crimeHtml += `</div>`;
+  document.getElementById('crimeBody').innerHTML = crimeHtml;
+  updateCrimeCategoryCounts(results.areaCrime || results.crime);
+
+  // Weather
+  let weatherHtml = '';
+  if(results.areaWeather){
+    weatherHtml += `<div class="council-section"><div class="section-title">${results.constituency} — constituency-wide (centre point)</div>`;
+    const w = results.areaWeather;
+    weatherHtml += gauge('Sunny days/yr', w.sunnyDaysPerYear, 220, w.sunnyDaysPerYear, w.sunnyDaysPerYear>=140?'good':w.sunnyDaysPerYear>=100?'mid':'bad');
+    weatherHtml += gauge('Rainy days/yr', w.rainyDaysPerYear, 220, w.rainyDaysPerYear, w.rainyDaysPerYear<=100?'good':w.rainyDaysPerYear<=150?'mid':'bad');
+    if(results.areaWeatherTrend){
+      const t = results.areaWeatherTrend;
+      weatherHtml += `<div style="margin-top:10px;">` + trendLine('Sunny days vs prior 5yr', t.sunnyDaysOld, t.sunnyDaysNew, t.sunnyDaysPct, false) + trendLine('Rainy days vs prior 5yr', t.rainyDaysOld, t.rainyDaysNew, t.rainyDaysPct, true) + `</div>`;
+    }
+    weatherHtml += `</div>`;
+  }
+  weatherHtml += `<div class="divider-label">At your exact pin</div>`;
+  weatherHtml += `<div class="block"><div class="block-title">Typical weather (last 5yr average)</div>`;
+  if(results.weather){
+    const w = results.weather;
+    weatherHtml += `<div class="headline-stat">${w.sunnyDaysPerYear}</div><div class="headline-sub">sunny days per year (6+ hrs of sunshine)</div>`;
+    weatherHtml += `<div class="block" style="margin:16px 0 0;">`;
+    weatherHtml += gauge('Rainy days/yr', w.rainyDaysPerYear, 220, w.rainyDaysPerYear, w.rainyDaysPerYear<=100?'good':w.rainyDaysPerYear<=150?'mid':'bad');
+    weatherHtml += gauge('Sun hours/yr', w.sunHoursPerYear, 2200, w.sunHoursPerYear, w.sunHoursPerYear>=1600?'good':w.sunHoursPerYear>=1300?'mid':'bad');
+    weatherHtml += gauge('Avg humidity', w.avgHumidity, 100, w.avgHumidity+'%', w.avgHumidity<=75?'good':w.avgHumidity<=85?'mid':'bad');
+    weatherHtml += `</div>`;
+    if(results.weatherTrend){
+      const t = results.weatherTrend;
+      weatherHtml += `<div style="margin-top:10px;">` + trendLine('Sunny days vs prior 5yr', t.sunnyDaysOld, t.sunnyDaysNew, t.sunnyDaysPct, false) + trendLine('Rainy days vs prior 5yr', t.rainyDaysOld, t.rainyDaysNew, t.rainyDaysPct, true) + trendLine('Sun hours vs prior 5yr', t.sunHoursOld, t.sunHoursNew, t.sunHoursPct, false) + `</div>`;
+    }
+  } else {
+    weatherHtml += `<div class="err">Weather averages unavailable right now.</div>`;
+  }
+  weatherHtml += `</div>`;
+  document.getElementById('weatherBody').innerHTML = weatherHtml;
+
+  // Pollution
+  let pollutionHtml = '';
+  if(results.areaAir){
+    pollutionHtml += `<div class="council-section"><div class="section-title">${results.constituency} — constituency-wide (centre point)</div>`;
+    const pm25 = results.areaAir.pm2_5;
+    const r1 = pm25Rating(pm25);
+    pollutionHtml += gauge('PM2.5', pm25||0, 40, pm25!=null?pm25.toFixed(1):'—', r1.c);
+    pollutionHtml += `</div>`;
+  }
+  pollutionHtml += `<div class="divider-label">At your exact pin</div>`;
+  pollutionHtml += `<div class="block"><div class="block-title">Air quality</div>`;
+  if(results.air){
+    const pm25 = results.air.pm2_5, pm10 = results.air.pm10, no2 = results.air.nitrogen_dioxide;
+    const r1 = pm25Rating(pm25);
+    pollutionHtml += gauge('PM2.5', pm25||0, 40, pm25!=null?pm25.toFixed(1):'—', r1.c);
+    pollutionHtml += gauge('PM10', pm10||0, 60, pm10!=null?pm10.toFixed(1):'—', pm10<=20?'good':pm10<=40?'mid':'bad');
+    pollutionHtml += gauge('NO₂', no2||0, 100, no2!=null?no2.toFixed(1):'—', no2<=20?'good':no2<=40?'mid':'bad');
+    pollutionHtml += `<div class="headline-sub" style="margin-top:6px;">Current reading, µg/m³. No reliable free long-term trend available for pollution.</div>`;
+  } else {
+    pollutionHtml += `<div class="err">Air quality data unavailable right now.</div>`;
+  }
+  pollutionHtml += `</div>`;
+  pollutionHtml += `<div class="note">Noise pollution isn't shown here — there's no free, reliably accessible UK noise-map data source to pull from.</div>`;
+  document.getElementById('pollutionBody').innerHTML = pollutionHtml;
+
+  // Housing — Land Registry
+  let lrHtml = '';
+  if(results.hpi){
+    const h = results.hpi;
+    const verdict = h.vsTenPct == null ? 'not enough history to call a trend' :
+      h.vsTenPct > 15 ? 'a strongly appreciating area' :
+      h.vsTenPct > 0 ? 'a gently appreciating area' :
+      h.vsTenPct < -5 ? 'a depreciating area' : 'a roughly flat area over the long run';
+    lrHtml += `<div class="council-section">
+      <div class="section-title">${results.place ? results.place.district : 'This council'} — average sold price</div>
+      <div class="headline-stat">£${h.latestPrice ? Math.round(h.latestPrice).toLocaleString() : '—'}</div>
+      <div class="headline-sub">Land Registry monthly average (${h.latestDate ? h.latestDate.slice(0,7) : '—'}) — reads as ${verdict}</div>
+      <div style="margin-top:10px;">`
+      + trendLine('vs 5 years ago', h.fivePrice, h.latestPrice, h.vsFivePct, false)
+      + trendLine('vs 10 years ago', h.tenPrice, h.latestPrice, h.vsTenPct, false)
+      + `</div>`;
+    if(h.yearly && h.yearly.length > 1){
+      lrHtml += `<div style="margin-top:16px;"><canvas id="hpiChart" height="200"></canvas></div>
+      <button id="hpiToggleBtn" class="search-btn" style="width:100%; margin-top:10px; display:none;">Show by property type →</button>
+      <div class="headline-sub" style="margin-top:8px;">Dashed line = the same prices adjusted for inflation, using ONS CPI data, so you can see whether values grew in real terms or just kept pace with everything else getting more expensive.</div>`;
+    }
+    lrHtml += `</div>`;
+  } else {
+    lrHtml += `<div class="err">Council-wide price history unavailable right now — this pulls live from Land Registry's own service, which can occasionally be unreachable.</div>`;
+  }
+  lrHtml += `<div class="block"><div class="block-title">Recent sales at the nearest postcode</div>`;
+  if(results.recentSales && results.recentSales.length){
+    lrHtml += `<ul class="crime-list">` + results.recentSales.slice(0,8).map(s =>
+      `<li><span>${(s.paon||'')} ${(s.street||'')}${s.date ? ', ' + s.date.slice(0,10) : ''}</span><span>£${s.price ? s.price.toLocaleString() : '—'}</span></li>`
+    ).join('') + `</ul>`;
+    lrHtml += `<div class="headline-sub" style="margin-top:8px;">A UK postcode covers roughly 15 homes on average, so expect a short list here, not hundreds of sales.</div>`;
+  } else {
+    lrHtml += `<div class="err">No individual sale records found at this exact postcode, or the lookup didn't return data.</div>`;
+  }
+  lrHtml += `</div>`;
+  document.getElementById('landRegistryBody').innerHTML = lrHtml;
+  if(results.hpi && results.hpi.yearly && results.hpi.yearly.length > 1){
+    drawHpiChart(results.hpi, results.inflationYearly);
+  }
+
+  // Housing — planning / development watch
+  let planHtml = `<div class="block"><div class="block-title">Protective designations nearby</div>`;
+  if(results.designations && results.designations.length){
+    planHtml += `<ul class="crime-list">` + results.designations.slice(0,10).map(d =>
+      `<li><span>${(d.name || d.reference || 'Designation')}</span><span>${(d.dataset || '').replace(/-/g,' ')}</span></li>`
+    ).join('') + `</ul>`;
+  } else {
+    planHtml += `<div class="headline-sub">No conservation area, green belt, or Article 4 direction found near this postcode in the government's planning data platform. That dataset is still in beta with patchy council coverage, so an empty result isn't a guarantee nothing's protected — worth a manual check if this matters to you.</div>`;
+  }
+  planHtml += `</div>`;
+
+  const areaTerm = (results.constituency || '') + ' ' + (results.place ? results.place.district : '');
+  const searchQuery = encodeURIComponent(areaTerm + ' planning applications new development');
+  const councilQuery = encodeURIComponent((results.place ? results.place.district : '') + ' council planning portal search');
+  planHtml += `<div class="block"><div class="block-title">Worth checking yourself</div>
+    <div class="headline-sub" style="margin-bottom:10px;">There's no reliable free automated feed for planning proposals, road/rail schemes, or local plan changes across every UK council, so these do the search for you instead of guessing.</div>
+    <a class="link-row" href="https://www.google.com/search?q=${searchQuery}" target="_blank" rel="noopener">Search: recent planning activity nearby →</a>
+    <a class="link-row" href="https://www.google.com/search?q=${councilQuery}" target="_blank" rel="noopener">Find: your council's planning portal →</a>
+    <a class="link-row" href="https://www.planning.data.gov.uk/" target="_blank" rel="noopener">Browse: national planning data platform (beta) →</a>
+  </div>`;
+  document.getElementById('planningBody').innerHTML = planHtml;
+}
+
+/* ---------- AI summary ---------- */
+
+async function generateAiSummary(){
+  if(!lastResults) return;
+  const r = lastResults;
+  const btn = document.getElementById('aiSummaryBtn');
+  const out = document.getElementById('aiSummaryOutput');
+  btn.disabled = true; btn.textContent = 'Thinking…';
+  out.textContent = '';
+
+  const lines = [];
+  lines.push(`Area: ${r.constituency || 'unknown constituency'}${r.place ? ', council: ' + (r.place.district||'unknown') : ''}`);
+  if(r.mp && r.mp.mpName) lines.push(`MP: ${r.mp.mpName} (${r.mp.party || 'party unknown'})`);
+  lines.push(`Crime near exact pin: ${r.crime ? r.crime.length + ' reported in the most recent month on file' : 'unavailable'}`);
+  if(r.crimeTrend) lines.push(`Pin crime trend: vs 5yr ago ${r.crimeTrend.vsFivePct!=null ? r.crimeTrend.vsFivePct+'%' : 'unavailable'}, vs 10yr ago ${r.crimeTrend.vsTenPct!=null ? r.crimeTrend.vsTenPct+'%' : 'unavailable'}`);
+  lines.push(`Constituency-wide crime: ${r.areaCrime ? r.areaCrime.length + ' reported in the most recent month on file' : 'unavailable'}`);
+  lines.push(`Air quality (PM2.5) at pin: ${r.air ? r.air.pm2_5 + ' µg/m3' : 'unavailable'}`);
+  if(r.weather) lines.push(`Typical weather at pin (5yr avg): ${r.weather.sunnyDaysPerYear} sunny days/yr, ${r.weather.rainyDaysPerYear} rainy days/yr, ${r.weather.avgHumidity}% humidity`);
+  if(r.hpi) lines.push(`Council average sold price: £${r.hpi.latestPrice ? Math.round(r.hpi.latestPrice).toLocaleString() : 'unavailable'}, vs 5yr ago ${r.hpi.vsFivePct!=null?r.hpi.vsFivePct+'%':'unavailable'}, vs 10yr ago ${r.hpi.vsTenPct!=null?r.hpi.vsTenPct+'%':'unavailable'}`);
+  if(r.designations) lines.push(`Nearby protective designations: ${r.designations.length ? r.designations.map(d=>d.dataset).join(', ') : 'none found in the (beta) planning dataset'}`);
+
+  const prompt = `You are summarising open UK data for someone deciding where to live. Using ONLY the facts below (do not invent numbers), write a neutral, plain-English summary in 4-6 sentences covering crime level and trend, air quality, weather/climate character, and house price trend. Be direct about both good and bad points.
+
+${lines.join('\n')}`;
+
+  try{
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    out.textContent = text || 'No summary returned. Try again in a moment.';
+  } catch(e){
+    out.textContent = 'Could not generate a summary right now.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Generate AI summary';
+  }
+}
+document.getElementById('aiSummaryBtn').addEventListener('click', generateAiSummary);
+</script>
+</body>
+</html>
