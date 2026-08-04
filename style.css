@@ -44,6 +44,23 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
   box-shadow:0 4px 14px rgba(0,0,0,0.45);
 }
 #sidebarToggle:hover{filter:brightness(1.15);}
+
+/* Handle bar for the mobile bottom sheet (hidden on desktop, where the
+   top-right #sidebarToggle button is used instead — see media query below). */
+.sheet-handle{display:none;}
+.sheet-handle-title{
+  flex:1; font-family:'IBM Plex Mono',monospace; font-size:11px;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--accent);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sheet-handle-btn{
+  width:34px; height:34px; flex-shrink:0; padding:0; border-radius:6px;
+  border:1px solid var(--panel-line); background:#1A2B1E; color:var(--ink-dim);
+  font-size:14px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.sheet-handle-btn.active{color:var(--accent); border-color:var(--accent); background:#1E2E22;}
+
 header{padding:22px 56px 14px 24px; border-bottom:1px solid var(--panel-line); flex-shrink:0;}
 header .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent);}
 header h1{font-family:'Fraunces',serif; font-weight:600; font-size:25px; margin:6px 0 8px; line-height:1.1;}
@@ -130,14 +147,33 @@ header p{margin:0; color:var(--ink-dim); font-size:12.5px; line-height:1.5;}
 .crime-spot-icon > div{ border-radius:50%; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:700; text-align:center; border:2px solid rgba(255,255,255,0.65); box-shadow:0 2px 6px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
 .spot-tooltip{font-family:'Inter',sans-serif; font-size:12px; line-height:1.5;}
 
-/* ---------- Mobile (iPhone-width) layout ---------- */
+/* ---------- Mobile (iPhone-width) layout: sidebar becomes a draggable-feeling
+   bottom sheet with three snap states instead of the desktop's side drawer ---------- */
 @media (max-width: 768px){
-  #sidebar{width:100%; max-width:100%; border-left:none;}
+  #sidebarToggle{display:none;}
 
-  header{padding:16px 56px 12px 18px;}
-  header h1{font-size:21px;}
-  #pinBar{padding:12px 18px;}
-  .tab-panel{padding:16px 18px 32px;}
+  #sidebar{
+    top:auto; left:0; right:0; bottom:0; width:100%; max-width:100%;
+    height:100dvh; height:100vh;
+    border-left:none; border-top:1px solid var(--panel-line);
+    border-radius:16px 16px 0 0;
+    transform:translateY(calc(100dvh - 34vh)); /* default = 'third' */
+  }
+  #sidebar.collapsed{transform:translateY(calc(100dvh - 34vh));} /* desktop class, unused here */
+  #sidebar.sheet-minimized{transform:translateY(calc(100dvh - 56px));}
+  #sidebar.sheet-third{transform:translateY(calc(100dvh - 34vh));}
+  #sidebar.sheet-full{transform:translateY(0);}
+
+  .sheet-handle{
+    display:flex; align-items:center; gap:8px; flex-shrink:0;
+    height:56px; padding:0 14px;
+    border-bottom:1px solid var(--panel-line); background:#16241A;
+  }
+
+  header{padding:14px 18px 10px;}
+  header h1{font-size:19px;}
+  #pinBar{padding:10px 18px;}
+  .tab-panel{padding:14px 18px 32px;}
 
   /* Apple HIG wants ~44px tap targets, and iOS Safari auto-zooms on any
      focused input/select under 16px font-size — both addressed below. */
