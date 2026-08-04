@@ -15,10 +15,14 @@ const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x
 lightLayer.addTo(map);
 
 const crimeSpotLayerGroup = L.layerGroup();
+// Unlike the crime heatmap (opt-in, manually refreshed), schools are fetched
+// automatically as part of a normal pin search — so this layer is visible
+// by default, just toggle-able off from the same layers control if wanted.
+const schoolMarkerLayerGroup = L.layerGroup().addTo(map);
 
 L.control.layers(
   { 'Light (readable)': lightLayer, 'Outdoors (rivers & footpaths)': outdoorsLayer, 'Dark': darkLayer },
-  { 'Crime heatmap': crimeSpotLayerGroup },
+  { 'Crime heatmap': crimeSpotLayerGroup, 'Schools': schoolMarkerLayerGroup },
   // Left open on desktop as before; starts collapsed on narrow (phone-width)
   // screens so it doesn't cover most of the shorter mobile map area.
   { position:'topright', collapsed: window.innerWidth <= 768 }
