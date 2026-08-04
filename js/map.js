@@ -19,7 +19,9 @@ const crimeSpotLayerGroup = L.layerGroup();
 L.control.layers(
   { 'Light (readable)': lightLayer, 'Outdoors (rivers & footpaths)': outdoorsLayer, 'Dark': darkLayer },
   { 'Crime heatmap': crimeSpotLayerGroup },
-  { position:'topright', collapsed:false }
+  // Left open on desktop as before; starts collapsed on narrow (phone-width)
+  // screens so it doesn't cover most of the shorter mobile map area.
+  { position:'topright', collapsed: window.innerWidth <= 768 }
 ).addTo(map);
 
 L.control.scale({position:'bottomleft', metric:true, imperial:true, maxWidth:150}).addTo(map);
