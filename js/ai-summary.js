@@ -1,10 +1,44 @@
-/* ---------- AI summary ---------- */
+/* ---------- AI summary: bring-your-own Anthropic API key, stored client-side only ---------- */
+
+const AI_API_KEY_STORAGE_KEY = 'groundtruthAnthropicApiKey';
+
+function getStoredApiKey(){
+  try{ return (localStorage.getItem(AI_API_KEY_STORAGE_KEY) || '').trim(); } catch(e){ return ''; }
+}
+
+function setStoredApiKey(key){
+  try{
+    if(key) localStorage.setItem(AI_API_KEY_STORAGE_KEY, key);
+    else localStorage.removeItem(AI_API_KEY_STORAGE_KEY);
+  } catch(e){}
+}
+
+function updateAiKeyStatus(){
+  const status = document.getElementById('aiKeyStatus');
+  status.textContent = getStoredApiKey()
+    ? 'Key saved in this browser only.'
+    : "No key saved yet — the button below won't work until you add one.";
+}
+
+const aiApiKeyInput = document.getElementById('aiApiKeyInput');
+aiApiKeyInput.value = getStoredApiKey();
+updateAiKeyStatus();
+aiApiKeyInput.addEventListener('change', function(){
+  setStoredApiKey(this.value.trim());
+  updateAiKeyStatus();
+});
 
 async function generateAiSummary(){
   if(!lastResults) return;
+  const out = document.getElementById('aiSummaryOutput');
+  const apiKey = getStoredApiKey();
+  if(!apiKey){
+    out.textContent = 'Add your Anthropic API key above first.';
+    return;
+  }
+
   const r = lastResults;
   const btn = document.getElementById('aiSummaryBtn');
-  const out = document.getElementById('aiSummaryOutput');
   btn.disabled = true; btn.textContent = 'Thinking…';
   out.textContent = '';
 
@@ -26,16 +60,26 @@ ${lines.join('\n')}`;
   try{
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await resp.json();
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-    out.textContent = text || 'No summary returned. Try again in a moment.';
+    if(!resp.ok){
+      const apiMsg = data && data.error && data.error.message;
+      out.textContent = apiMsg ? `Anthropic API error: ${apiMsg}` : 'Could not generate a summary right now.';
+    } else {
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+      out.textContent = text || 'No summary returned. Try again in a moment.';
+    }
   } catch(e){
     out.textContent = 'Could not generate a summary right now.';
   } finally {
