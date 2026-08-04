@@ -15,14 +15,15 @@ const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x
 lightLayer.addTo(map);
 
 const crimeSpotLayerGroup = L.layerGroup();
-// Unlike the crime heatmap (opt-in, manually refreshed), schools are fetched
-// automatically as part of a normal pin search — so this layer is visible
-// by default, just toggle-able off from the same layers control if wanted.
+// Unlike the crime heatmap (opt-in, manually refreshed), schools and transport
+// stops are fetched automatically as part of a normal pin search — so these
+// layers are visible by default, just toggle-able off from the same layers control.
 const schoolMarkerLayerGroup = L.layerGroup().addTo(map);
+const transportMarkerLayerGroup = L.layerGroup().addTo(map);
 
 L.control.layers(
   { 'Light (readable)': lightLayer, 'Outdoors (rivers & footpaths)': outdoorsLayer, 'Dark': darkLayer },
-  { 'Crime heatmap': crimeSpotLayerGroup, 'Schools': schoolMarkerLayerGroup },
+  { 'Crime heatmap': crimeSpotLayerGroup, 'Schools': schoolMarkerLayerGroup, 'Transport links': transportMarkerLayerGroup },
   // Left open on desktop as before; starts collapsed on narrow (phone-width)
   // screens so it doesn't cover most of the shorter mobile map area.
   { position:'topright', collapsed: window.innerWidth <= 768 }
