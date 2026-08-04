@@ -27,7 +27,16 @@ async function fetchHpiFull(regionName){
     if(!r.ok) return null;
     const json = await r.json();
     const items = (json.result && json.result.items) || (json.result && json.result.primaryTopic && json.result.primaryTopic.items) || [];
-    const clean = items.filter(i => i.refPeriodStart && i.averagePrice != null)
+    // Normalize refPeriodStart to a plain YYYY-MM-DD string up front — the API's
+    // exact date literal shape isn't guaranteed, and every downstream year/month
+    // extraction below relies on a consistent format rather than raw string-slicing.
+    const clean = items
+      .map(i => {
+        if(!i.refPeriodStart || i.averagePrice == null) return null;
+        const d = new Date(i.refPeriodStart);
+        return isNaN(d) ? null : { ...i, refPeriodStart: d.toISOString().slice(0,10) };
+      })
+      .filter(i => i)
       .sort((a,b) => new Date(a.refPeriodStart) - new Date(b.refPeriodStart));
     if(!clean.length) return null;
 
@@ -103,11 +112,17 @@ let hpiShowingByType = false;
 function renderHpiLineChart(yearly, inflationYearly){
   const canvas = document.getElementById('hpiChart');
   if(!canvas) return;
-  const labels = yearly.map(p => p.year);
-  const nominal = yearly.map(p => p.price);
-  const latestYearKey = yearly[yearly.length-1].year;
+  // Chart.js will misread plain year strings ("2015" etc.) as parseable dates
+  // and silently switch the x-axis to a day-level time scale unless the scale
+  // type is forced — hence the explicit 'category' below. Also only the most
+  // recent 5 years are plotted here (fetchHpiFull still pulls more history,
+  // since the 5yr/10yr headline trend stats above the chart need it).
+  const recentYearly = yearly.slice(-5);
+  const labels = recentYearly.map(p => p.year);
+  const nominal = recentYearly.map(p => p.price);
+  const latestYearKey = recentYearly[recentYearly.length-1].year;
   const latestCpi = inflationYearly ? inflationYearly[latestYearKey] : null;
-  const real = (inflationYearly && latestCpi) ? yearly.map(p => {
+  const real = (inflationYearly && latestCpi) ? recentYearly.map(p => {
     const cpi = inflationYearly[p.year];
     return cpi ? Math.round(p.price * (latestCpi / cpi)) : null;
   }) : null;
@@ -127,8 +142,8 @@ function renderHpiLineChart(yearly, inflationYearly){
       responsive: true,
       plugins: { legend: { labels: { color: '#EDEEE6', font: { size: 11 } } } },
       scales: {
-        x: { ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { color: '#24382B' } },
-        y: { ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
+        x: { type: 'category', ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { color: '#24382B' } },
+        y: { type: 'linear', ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
       }
     }
   });
@@ -147,8 +162,8 @@ function renderHpiTypeChart(byType){
       responsive: true,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
+        x: { type: 'category', ticks: { color: '#9FAE9C', font: { size: 10 } }, grid: { display: false } },
+        y: { type: 'linear', ticks: { color: '#9FAE9C', font: { size: 10 }, callback: v => '£'+Math.round(v/1000)+'k' }, grid: { color: '#24382B' } }
       }
     }
   });

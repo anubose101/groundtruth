@@ -49,7 +49,7 @@ async function generateAiSummary(){
   if(r.crimeTrend) lines.push(`Pin crime trend: vs 5yr ago ${r.crimeTrend.vsFivePct!=null ? r.crimeTrend.vsFivePct+'%' : 'unavailable'}, vs 10yr ago ${r.crimeTrend.vsTenPct!=null ? r.crimeTrend.vsTenPct+'%' : 'unavailable'}`);
   lines.push(`Constituency-wide crime: ${r.areaCrime ? r.areaCrime.length + ' reported in the most recent month on file' : 'unavailable'}`);
   lines.push(`Air quality (PM2.5) at pin: ${r.air ? r.air.pm2_5 + ' µg/m3' : 'unavailable'}`);
-  if(r.weather) lines.push(`Typical weather at pin (5yr avg): ${r.weather.sunnyDaysPerYear} sunny days/yr, ${r.weather.rainyDaysPerYear} rainy days/yr, ${r.weather.avgHumidity}% humidity`);
+  if(r.weather) lines.push(`Typical weather at pin (5yr avg): ${r.weather.sunnyDaysPerYear} sunny days/yr, ${r.weather.rainyDaysPerYear} rainy days/yr`);
   if(r.hpi) lines.push(`Council average sold price: £${r.hpi.latestPrice ? Math.round(r.hpi.latestPrice).toLocaleString() : 'unavailable'}, vs 5yr ago ${r.hpi.vsFivePct!=null?r.hpi.vsFivePct+'%':'unavailable'}, vs 10yr ago ${r.hpi.vsTenPct!=null?r.hpi.vsTenPct+'%':'unavailable'}`);
   if(r.designations) lines.push(`Nearby protective designations: ${r.designations.length ? r.designations.map(d=>d.dataset).join(', ') : 'none found in the (beta) planning dataset'}`);
 
