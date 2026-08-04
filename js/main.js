@@ -2,25 +2,52 @@
 
 let lastResults = null;
 
-/* ---------- Sidebar collapse/expand ---------- */
+/* ---------- Sidebar: desktop collapsible drawer / mobile bottom sheet ---------- */
 
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggleBtn = document.getElementById('sidebarToggle');
+const sheetHandleButtons = {
+  minimized: document.getElementById('sheetMinBtn'),
+  third: document.getElementById('sheetThirdBtn'),
+  full: document.getElementById('sheetFullBtn')
+};
 
+function isMobileLayout(){
+  return window.innerWidth <= 768;
+}
+
+// Desktop: sidebar either fully open or fully off-screen, toggled by the
+// top-right button (hidden on mobile, where the bottom-sheet handle is used instead).
 function setSidebarCollapsed(collapsed){
+  sidebarEl.classList.remove('sheet-minimized', 'sheet-third', 'sheet-full');
   sidebarEl.classList.toggle('collapsed', collapsed);
   sidebarToggleBtn.textContent = collapsed ? '☰' : '✕';
   sidebarToggleBtn.setAttribute('aria-expanded', String(!collapsed));
   sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Show sidebar' : 'Hide sidebar');
 }
 
+// Mobile: three snap states — a peek at the bottom, a third of the screen
+// (the default, enough to search and see a headline), or full screen.
+function setSheetState(state){
+  sidebarEl.classList.remove('collapsed', 'sheet-minimized', 'sheet-third', 'sheet-full');
+  sidebarEl.classList.add('sheet-' + state);
+  Object.entries(sheetHandleButtons).forEach(([key, btn]) => btn.classList.toggle('active', key === state));
+}
+
 sidebarToggleBtn.addEventListener('click', function(){
   setSidebarCollapsed(!sidebarEl.classList.contains('collapsed'));
 });
+sheetHandleButtons.minimized.addEventListener('click', () => setSheetState('minimized'));
+sheetHandleButtons.third.addEventListener('click', () => setSheetState('third'));
+sheetHandleButtons.full.addEventListener('click', () => setSheetState('full'));
 
-// Start collapsed on narrow (phone-width) screens so the map is visible
-// immediately; start open on desktop where there's room for both.
-setSidebarCollapsed(window.innerWidth <= 768);
+// Start at a third of the screen on phone-width screens (map still mostly
+// visible, room to search); start open on desktop where there's room for both.
+if(isMobileLayout()){
+  setSheetState('third');
+} else {
+  setSidebarCollapsed(false);
+}
 
 /* ---------- Tabs ---------- */
 
