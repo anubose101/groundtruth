@@ -37,6 +37,7 @@
       <button class="tab-btn" data-tab="housing">Housing</button>
       <button class="tab-btn" data-tab="schools">Schools</button>
       <button class="tab-btn" data-tab="transport">Transport</button>
+      <button class="tab-btn" data-tab="commute">Commute</button>
     </div>
 
     <div id="tabPanels">
@@ -146,6 +147,40 @@
           <div id="tflJourneyResult"></div>
         </div>
       </div>
+
+      <div class="tab-panel hidden" data-panel="commute">
+        <div class="block">
+          <div class="block-title">TravelTime API credentials</div>
+          <div class="headline-sub" style="margin-bottom:10px;">This "how far can I get" map needs its own free API account from TravelTime, separate from anything else on this page. Credentials are saved only in this browser and sent directly from your browser to TravelTime.</div>
+          <input type="text" id="ttAppIdInput" class="full-select" placeholder="Application ID" autocomplete="off">
+          <input type="password" id="ttApiKeyInput" class="full-select" placeholder="API Key" autocomplete="off">
+          <div class="headline-sub" id="ttKeyStatus" style="margin-top:-6px; margin-bottom:10px;"></div>
+          <a class="link-row" href="https://docs.traveltime.com/api/overview/getting-keys" target="_blank" rel="noopener">Get free API credentials at traveltime.com →</a>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Commute options</div>
+          <div class="filter-types">
+            <label><input type="checkbox" class="tt-mode-cb" value="public_transport" checked> Public transport</label>
+            <label><input type="checkbox" class="tt-mode-cb" value="driving"> Driving</label>
+            <label><input type="checkbox" class="tt-mode-cb" value="cycling"> Cycling</label>
+            <label><input type="checkbox" class="tt-mode-cb" value="walking"> Walking</label>
+          </div>
+          <select id="ttMinutesSelect" class="full-select">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60" selected>60 minutes</option>
+            <option value="90">90 minutes</option>
+          </select>
+          <button id="ttGenerateBtn" class="search-btn" style="width:100%;" disabled>Search a location first</button>
+        </div>
+
+        <div id="ttLegend"></div>
+        <div id="ttResult"></div>
+
+        <div class="note">Nothing here fires automatically — only when you press "Generate," using your own TravelTime account's quota. Results for the same location/modes/time are cached in this browser tab so re-viewing doesn't spend another call. Public transport isochrones in particular can take several seconds to compute.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -159,6 +194,7 @@
 <script src="js/housing.js"></script>
 <script src="js/schools.js"></script>
 <script src="js/transport.js"></script>
+<script src="js/commute.js"></script>
 <script src="js/ai-summary.js"></script>
 <script src="js/main.js"></script>
 </body>

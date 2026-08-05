@@ -223,4 +223,5 @@ function render(lat, lng, results){
   renderPlanning(results);
   renderSchools(results);
   renderTransport(results);
+  renderCommute(results);
 }

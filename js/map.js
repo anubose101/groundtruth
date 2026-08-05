@@ -20,10 +20,13 @@ const crimeSpotLayerGroup = L.layerGroup();
 // layers are visible by default, just toggle-able off from the same layers control.
 const schoolMarkerLayerGroup = L.layerGroup().addTo(map);
 const transportMarkerLayerGroup = L.layerGroup().addTo(map);
+// Off by default like the crime heatmap — only populated when the user
+// explicitly presses "Generate" on the Commute tab, never automatically.
+const commuteIsochroneLayerGroup = L.layerGroup();
 
 L.control.layers(
   { 'Light (readable)': lightLayer, 'Outdoors (rivers & footpaths)': outdoorsLayer, 'Dark': darkLayer },
-  { 'Crime heatmap': crimeSpotLayerGroup, 'Schools': schoolMarkerLayerGroup, 'Transport links': transportMarkerLayerGroup },
+  { 'Crime heatmap': crimeSpotLayerGroup, 'Schools': schoolMarkerLayerGroup, 'Transport links': transportMarkerLayerGroup, 'Commute map': commuteIsochroneLayerGroup },
   // Left open on desktop as before; starts collapsed on narrow (phone-width)
   // screens so it doesn't cover most of the shorter mobile map area.
   { position:'topright', collapsed: window.innerWidth <= 768 }
