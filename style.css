@@ -151,6 +151,7 @@ header p{margin:0; color:var(--ink-dim); font-size:12.5px; line-height:1.5;}
 .leaflet-bar a{background:var(--panel) !important; color:var(--ink) !important; border-color:var(--panel-line) !important;}
 .crime-spot-icon > div{ border-radius:50%; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:700; text-align:center; border:2px solid rgba(255,255,255,0.65); box-shadow:0 2px 6px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
 .school-marker-icon > div{ border-radius:6px; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:700; text-align:center; border:2px solid rgba(255,255,255,0.65); box-shadow:0 2px 6px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
+.transport-marker-icon > div{ border-radius:50%; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:700; text-align:center; border:2px solid rgba(255,255,255,0.65); box-shadow:0 2px 6px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; }
 .spot-tooltip{font-family:'Inter',sans-serif; font-size:12px; line-height:1.5;}
 
 /* ---------- Mobile (iPhone-width) layout: sidebar becomes a draggable-feeling
