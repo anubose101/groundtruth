@@ -158,14 +158,14 @@ function renderSummary(results){
 
 async function loadStats(lat, lng){
   document.getElementById('pinBar').innerHTML = `<div class="coord">Searching ${lat.toFixed(4)}, ${lng.toFixed(4)}…</div>`;
-  ['summaryBody','crimeBody','pollutionBody','landRegistryBody','planningBody'].forEach(id => {
+  ['summaryBody','crimeBody','pollutionBody','landRegistryBody','planningBody','schoolsBody'].forEach(id => {
     document.getElementById(id).innerHTML = `<div class="empty-state">Loading…</div>`;
   });
 
   const results = { crime: null, crimeTrend: null, air: null, weather: null,
                      constituency: null, place: null, mp: null,
                      areaCrime: null, areaCrimeTrend: null, areaAir: null,
-                     hpi: null, recentSales: null, designations: null };
+                     hpi: null, recentSales: null, designations: null, schools: null };
 
   const [constituencyName, placeInfo] = await Promise.all([
     loadConstituencyBoundary(lat, lng),
@@ -204,6 +204,7 @@ async function loadStats(lat, lng){
   results.inflationYearly = await getInflationSeries();
   results.recentSales = await fetchRecentSales(postcode);
   results.designations = await fetchDesignations(postcode);
+  results.schools = await fetchNearbySchools(lat, lng);
 
   lastResults = results;
   render(lat, lng, results);
@@ -219,4 +220,5 @@ function render(lat, lng, results){
   renderPollution(results);
   renderLandRegistry(results);
   renderPlanning(results);
+  renderSchools(results);
 }
