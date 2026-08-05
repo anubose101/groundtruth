@@ -135,6 +135,17 @@ function renderSummary(results){
     summaryHtml += `<div class="err">Political data unavailable for this constituency right now.</div>`;
   }
   summaryHtml += `</div>`;
+
+  summaryHtml += `<div class="block"><div class="block-title">Climate (5yr average)</div>`;
+  if(results.weather){
+    const w = results.weather;
+    summaryHtml += gauge('Sunny days/yr', w.sunnyDaysPerYear, 220, w.sunnyDaysPerYear, w.sunnyDaysPerYear>=140?'good':w.sunnyDaysPerYear>=100?'mid':'bad');
+    summaryHtml += gauge('Rainy days/yr', w.rainyDaysPerYear, 220, w.rainyDaysPerYear, w.rainyDaysPerYear<=100?'good':w.rainyDaysPerYear<=150?'mid':'bad');
+  } else {
+    summaryHtml += `<div class="err">Weather averages unavailable right now.</div>`;
+  }
+  summaryHtml += `</div>`;
+
   summaryHtml += `<div class="note">Gold outline on the map = the parliamentary constituency. Green dashed circle = an approximate postcode zone. Trend arrows elsewhere: green = improving, red = worsening.</div>`;
   document.getElementById('summaryBody').innerHTML = summaryHtml;
 
@@ -147,13 +158,13 @@ function renderSummary(results){
 
 async function loadStats(lat, lng){
   document.getElementById('pinBar').innerHTML = `<div class="coord">Searching ${lat.toFixed(4)}, ${lng.toFixed(4)}…</div>`;
-  ['summaryBody','crimeBody','weatherBody','pollutionBody','landRegistryBody','planningBody'].forEach(id => {
+  ['summaryBody','crimeBody','pollutionBody','landRegistryBody','planningBody'].forEach(id => {
     document.getElementById(id).innerHTML = `<div class="empty-state">Loading…</div>`;
   });
 
-  const results = { crime: null, crimeTrend: null, air: null, weather: null, weatherTrend: null,
+  const results = { crime: null, crimeTrend: null, air: null, weather: null,
                      constituency: null, place: null, mp: null,
-                     areaCrime: null, areaCrimeTrend: null, areaAir: null, areaWeather: null, areaWeatherTrend: null,
+                     areaCrime: null, areaCrimeTrend: null, areaAir: null,
                      hpi: null, recentSales: null, designations: null };
 
   const [constituencyName, placeInfo] = await Promise.all([
@@ -172,9 +183,7 @@ async function loadStats(lat, lng){
   results.crimeTrend = await fetchCrimeTrend(pointBase);
 
   results.air = await fetchAirQuality(lat, lng);
-  const pinWeather = await fetchWeather(lat, lng);
-  results.weather = pinWeather.weather;
-  results.weatherTrend = pinWeather.weatherTrend;
+  results.weather = await fetchWeather(lat, lng);
 
   if(constituencyName){
     const areaCrimeStats = await fetchAreaCrimeStats();
@@ -185,9 +194,6 @@ async function loadStats(lat, lng){
       try{
         const c = constituencyLayer.getBounds().getCenter();
         results.areaAir = await fetchAirQuality(c.lat, c.lng);
-        const areaWeather = await fetchWeather(c.lat, c.lng);
-        results.areaWeather = areaWeather.weather;
-        results.areaWeatherTrend = areaWeather.weatherTrend;
       } catch(e){}
     }
   }
@@ -210,7 +216,6 @@ function render(lat, lng, results){
 
   renderSummary(results);
   renderCrime(results);
-  renderWeather(results);
   renderPollution(results);
   renderLandRegistry(results);
   renderPlanning(results);
