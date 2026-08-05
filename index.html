@@ -136,7 +136,15 @@
       <div class="tab-panel hidden" data-panel="transport">
         <div id="transportBody"><div class="empty-state">Search a location to see nearby public transport links and walking times here.</div></div>
         <div id="transportDetail"></div>
-        <div class="note">Walking time and route come from a free public routing service and follow actual streets, not a straight line. Shows the nearest stops within 1.5 miles — this is walking distance only for now, not full public-transport journey times.</div>
+        <div class="note">Walking time and route come from a free public routing service and follow actual streets, not a straight line. Shows the nearest stops within 1.5 miles.</div>
+
+        <div class="divider-label">TfL journey planner</div>
+        <div class="block">
+          <div class="headline-sub" style="margin-bottom:10px;">Only covers Transport for London's network (Underground, Overground, DLR, Elizabeth line, buses, trams, National Rail within London) — for locations elsewhere in the UK this won't find a journey.</div>
+          <input type="text" id="tflDestinationInput" class="full-select" placeholder="Destination — postcode, station, or place name">
+          <button id="tflJourneyBtn" class="search-btn" style="width:100%;">Get journey time via TfL →</button>
+          <div id="tflJourneyResult"></div>
+        </div>
       </div>
     </div>
   </div>

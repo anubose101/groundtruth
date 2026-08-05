@@ -162,7 +162,7 @@ async function loadStats(lat, lng){
     document.getElementById(id).innerHTML = `<div class="empty-state">Loading…</div>`;
   });
 
-  const results = { crime: null, crimeTrend: null, air: null, weather: null,
+  const results = { lat, lng, crime: null, crimeTrend: null, air: null, weather: null,
                      constituency: null, place: null, mp: null,
                      areaCrime: null, areaCrimeTrend: null, areaAir: null,
                      hpi: null, recentSales: null, designations: null, schools: null, transport: null };

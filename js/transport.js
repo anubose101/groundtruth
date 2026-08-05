@@ -134,6 +134,22 @@ function renderTransportList(stops){
   });
 }
 
+/* ---------- TfL: lines serving a stop (best effort — TfL only covers Greater
+   London, so this simply comes back empty for stops elsewhere in the UK,
+   which is expected rather than an error) ---------- */
+
+async function fetchTflLinesForStop(name){
+  try{
+    const r = await fetch(`https://api.tfl.gov.uk/StopPoint/Search/${encodeURIComponent(name)}`);
+    if(!r.ok) return null;
+    const json = await r.json();
+    const match = json.matches && json.matches[0];
+    if(!match) return null;
+    const lineNames = (match.lines || []).map(l => l.name).filter(Boolean);
+    return lineNames.length ? lineNames : null;
+  } catch(e){ return null; }
+}
+
 function renderTransportDetail(stop){
   const detailEl = document.getElementById('transportDetail');
   if(!stop){ detailEl.innerHTML = ''; return; }
@@ -146,8 +162,15 @@ function renderTransportDetail(stop){
   } else {
     html += `<div class="err" style="margin-top:10px;">Walking route unavailable right now — the free routing service this pulls from can occasionally be unreachable.</div>`;
   }
+  html += `<div class="headline-sub" id="tflLinesForStop" style="margin-top:10px;">Checking TfL for lines serving this stop…</div>`;
   html += `</div>`;
   detailEl.innerHTML = html;
+
+  fetchTflLinesForStop(stop.name).then(lines => {
+    const el = document.getElementById('tflLinesForStop');
+    if(!el) return; // a different stop may have been selected by the time this resolves
+    el.textContent = lines ? `TfL lines here: ${lines.join(', ')}` : '';
+  });
 }
 
 function selectStop(stopId){
@@ -167,6 +190,67 @@ function selectStop(stopId){
   if(transportTabBtn && !transportTabBtn.classList.contains('active')) transportTabBtn.click();
   if(isMobileLayout() && sidebarEl.classList.contains('sheet-minimized')) setSheetState('third');
 }
+
+/* ---------- TfL: journey time to a chosen destination, from the searched pin ----------
+   TfL's Journey Planner is point-to-point (A -> B), not "everywhere reachable from
+   here" — there's no practical way to ask it for every station a given point can
+   reach without hundreds of calls per search, so this covers one destination at a
+   time, picked by the user. Only covers Greater London's network. */
+
+async function fetchTflJourney(fromLat, fromLng, destinationQuery){
+  try{
+    const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${fromLat}%2C${fromLng}/to/${encodeURIComponent(destinationQuery)}?mode=tube,bus,overground,dlr,elizabeth-line,tram,national-rail`;
+    const r = await fetch(url);
+    const json = await r.json();
+    if(!r.ok){
+      const msg = json && (json.message || (json.$type && json.$type.includes('Error') && json.exceptionType));
+      return { error: msg || 'TfL could not find a journey for that destination.' };
+    }
+    const journey = json.journeys && json.journeys[0];
+    if(!journey) return { error: 'No journey found — try a more specific destination (postcode or station name).' };
+    return {
+      durationMinutes: journey.duration,
+      legs: (journey.legs || []).map(leg => ({
+        mode: (leg.mode && leg.mode.name) || 'walking',
+        instruction: (leg.instruction && leg.instruction.summary) || '',
+        durationMinutes: leg.duration
+      }))
+    };
+  } catch(e){ return { error: 'Could not reach TfL right now.' }; }
+}
+
+function renderTflJourneyResult(result){
+  const el = document.getElementById('tflJourneyResult');
+  if(!result){ el.innerHTML = ''; return; }
+  if(result.error){
+    el.innerHTML = `<div class="err" style="margin-top:10px;">${result.error}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="council-section" style="margin-top:12px;">
+    <div class="headline-stat" style="font-size:22px;">${result.durationMinutes} min</div>
+    <div class="headline-sub" style="margin-bottom:8px;">total journey time, per TfL</div>
+    <ul class="crime-list">${result.legs.map(leg =>
+      `<li><span>${leg.instruction || leg.mode}</span><span>${leg.durationMinutes} min</span></li>`
+    ).join('')}</ul>
+  </div>`;
+}
+
+document.getElementById('tflJourneyBtn').addEventListener('click', async function(){
+  if(!lastResults || lastResults.lat == null){
+    renderTflJourneyResult({ error: 'Search a location first.' });
+    return;
+  }
+  const destination = document.getElementById('tflDestinationInput').value.trim();
+  if(!destination){
+    renderTflJourneyResult({ error: 'Enter a destination first.' });
+    return;
+  }
+  const btn = this;
+  btn.disabled = true; btn.textContent = 'Asking TfL…';
+  const result = await fetchTflJourney(lastResults.lat, lastResults.lng, destination);
+  renderTflJourneyResult(result);
+  btn.disabled = false; btn.textContent = 'Get journey time via TfL →';
+});
 
 /* ---------- Transport tab rendering (called from the search flow) ---------- */
 
