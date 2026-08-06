@@ -29,7 +29,7 @@ function buildCrimeCategoryTable(){
       <td>${c.name}</td>
       <td class="cat-count">—</td>
     </tr>`).join('');
-  wrap.innerHTML = `<table class="crime-table"><thead><tr><th></th><th>Category</th><th>Constituency count</th></tr></thead><tbody>${rows}</tbody></table>`;
+  wrap.innerHTML = `<table class="crime-table"><thead><tr><th></th><th>Category</th><th>Nearby count</th></tr></thead><tbody>${rows}</tbody></table>`;
   wrap.querySelectorAll('.crime-cat-cb').forEach(cb => cb.addEventListener('change', function(){
     if(rawCrimeData) renderCrimeSpots(rawCrimeData, getCheckedCategories());
   }));
@@ -156,39 +156,27 @@ async function fetchCrimeTrend(baseQuery){
   return { recent, five, ten, vsFivePct: pctChange(recent, five), vsTenPct: pctChange(recent, ten) };
 }
 
-/* ---------- Constituency-wide polygon helpers ---------- */
+/* ---------- Local-area polygon helpers ----------
+   data.police.uk takes an arbitrary polygon (not a radius), so the local area
+   circle drawn on the map is approximated as a 16-point ring and sent as that
+   polygon — giving a genuine "everything within the local area" count rather
+   than reusing the exact-pin query at a different radius. ---------- */
 
-function extractMainRing(geometry){
-  let rings = [];
-  if(geometry.type === 'Polygon'){ rings = [geometry.coordinates[0]]; }
-  else if(geometry.type === 'MultiPolygon'){ rings = geometry.coordinates.map(poly => poly[0]); }
-  rings.sort((a,b) => b.length - a.length);
-  return rings[0] || [];
-}
-function simplifyRing(ring, maxPoints){
-  if(ring.length <= maxPoints) return ring;
-  const step = Math.ceil(ring.length / maxPoints);
-  return ring.filter((_, i) => i % step === 0);
-}
 function ringToPolyParam(ring){
-  return ring.map(c => c[1].toFixed(4)+','+c[0].toFixed(4)).join(':');
+  return ring.map(c => c[0].toFixed(4)+','+c[1].toFixed(4)).join(':');
 }
 
-async function fetchAreaCrimeStats(){
+async function fetchAreaCrimeStats(lat, lng){
   const out = { crime: null, crimeTrend: null };
-  if(!constituencyGeoJSON || !constituencyLayer) return out;
+  if(lat == null || lng == null) return out;
 
-  let polyParam = null;
+  const polyParam = ringToPolyParam(circleRing(lat, lng, LOCAL_AREA_RADIUS_M));
   try{
-    const ring = simplifyRing(extractMainRing(constituencyGeoJSON.features[0].geometry), 120);
-    polyParam = ringToPolyParam(ring);
     const r = await fetch(`https://data.police.uk/api/crimes-street/all-crime?poly=${polyParam}`);
     if(r.ok){ out.crime = await r.json(); }
   } catch(e){}
 
-  if(polyParam){
-    out.crimeTrend = await fetchCrimeTrend(`https://data.police.uk/api/crimes-street/all-crime?poly=${polyParam}`);
-  }
+  out.crimeTrend = await fetchCrimeTrend(`https://data.police.uk/api/crimes-street/all-crime?poly=${polyParam}`);
 
   return out;
 }
@@ -197,12 +185,12 @@ async function fetchAreaCrimeStats(){
 
 function renderCrime(results){
   let crimeHtml = '';
-  if(results.constituency){
-    crimeHtml += `<div class="council-section"><div class="section-title">${results.constituency} — constituency-wide</div>`;
+  if(results.localAreaName){
+    crimeHtml += `<div class="council-section"><div class="section-title">${results.localAreaName} — local area</div>`;
     if(results.areaCrime){
-      crimeHtml += `<div class="headline-stat">${results.areaCrime.length.toLocaleString()}</div><div class="headline-sub">reported crimes across the whole constituency, most recent month on file</div>`;
+      crimeHtml += `<div class="headline-stat">${results.areaCrime.length.toLocaleString()}</div><div class="headline-sub">reported crimes within ~2 miles of your pin, most recent month on file</div>`;
     } else {
-      crimeHtml += `<div class="err">Constituency-wide crime total unavailable.</div>`;
+      crimeHtml += `<div class="err">Local area crime total unavailable.</div>`;
     }
     if(results.areaCrimeTrend){
       const t = results.areaCrimeTrend;

@@ -43,11 +43,11 @@ async function generateAiSummary(){
   out.textContent = '';
 
   const lines = [];
-  lines.push(`Area: ${r.constituency || 'unknown constituency'}${r.place ? ', council: ' + (r.place.district||'unknown') : ''}`);
+  lines.push(`Local area: ${r.localAreaName || 'unknown'}${r.place ? ', council: ' + (r.place.district||'unknown') : ''}${r.constituency ? ', constituency: ' + r.constituency : ''}`);
   if(r.mp && r.mp.mpName) lines.push(`MP: ${r.mp.mpName} (${r.mp.party || 'party unknown'})`);
   lines.push(`Crime near exact pin: ${r.crime ? r.crime.length + ' reported in the most recent month on file' : 'unavailable'}`);
   if(r.crimeTrend) lines.push(`Pin crime trend: vs 5yr ago ${r.crimeTrend.vsFivePct!=null ? r.crimeTrend.vsFivePct+'%' : 'unavailable'}, vs 10yr ago ${r.crimeTrend.vsTenPct!=null ? r.crimeTrend.vsTenPct+'%' : 'unavailable'}`);
-  lines.push(`Constituency-wide crime: ${r.areaCrime ? r.areaCrime.length + ' reported in the most recent month on file' : 'unavailable'}`);
+  lines.push(`Local area-wide crime: ${r.areaCrime ? r.areaCrime.length + ' reported in the most recent month on file' : 'unavailable'}`);
   lines.push(`Air quality (PM2.5) at pin: ${r.air ? r.air.pm2_5 + ' µg/m3' : 'unavailable'}`);
   if(r.weather) lines.push(`Typical weather at pin (5yr avg): ${r.weather.sunnyDaysPerYear} sunny days/yr, ${r.weather.rainyDaysPerYear} rainy days/yr`);
   if(r.hpi) lines.push(`Council average sold price: £${r.hpi.latestPrice ? Math.round(r.hpi.latestPrice).toLocaleString() : 'unavailable'}, vs 5yr ago ${r.hpi.vsFivePct!=null?r.hpi.vsFivePct+'%':'unavailable'}, vs 10yr ago ${r.hpi.vsTenPct!=null?r.hpi.vsTenPct+'%':'unavailable'}`);
