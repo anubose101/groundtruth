@@ -35,9 +35,11 @@ L.control.layers(
 L.control.scale({position:'bottomleft', metric:true, imperial:true, maxWidth:150}).addTo(map);
 
 let marker = null;
-let constituencyLayer = null;
-let constituencyGeoJSON = null;
-let postcodeCircle = null;
+let localAreaCircle = null;
+// Roughly ward/neighbourhood scale — deliberately bigger than the ~1 mile radius
+// data.police.uk itself uses for the exact-pin crime query, so the "local area"
+// figures are a genuinely wider comparison rather than a near-duplicate number.
+const LOCAL_AREA_RADIUS_M = 3000;
 
 /* ---------- Map status banner ---------- */
 
@@ -70,27 +72,58 @@ map.on('click', function(e){
   showPendingPin(lat, lng);
 });
 
-/* ---------- Boundary + postcode lookups ---------- */
+/* ---------- Boundary + postcode lookups ----------
+   The parliamentary constituency is looked up for the Summary tab's MP/political
+   facts only — it's a big area (often several miles across) so it's no longer
+   drawn or zoomed to on the map. What IS drawn and zoomed to is the postcode
+   circle below: the smallest boundary this app can actually get for free, and
+   the one every other tab's "local area" figures are now built around. */
 
 async function loadConstituencyBoundary(lat, lng){
   try{
-    const url = `https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Westminster_Parliamentary_Constituencies_July_2024_Boundaries_UK_BSC/FeatureServer/0/query?geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&f=geojson`;
+    // returnGeometry=false — only the name is needed now that this boundary
+    // isn't drawn on the map.
+    const url = `https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Westminster_Parliamentary_Constituencies_July_2024_Boundaries_UK_BSC/FeatureServer/0/query?geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=geojson`;
     const r = await fetch(url);
     if(!r.ok) return null;
     const gj = await r.json();
     if(!gj.features || !gj.features.length) return null;
-    constituencyGeoJSON = gj;
-
-    if(constituencyLayer) map.removeLayer(constituencyLayer);
-    constituencyLayer = L.geoJSON(gj, {
-      style: { color:'#E4C87A', weight:2, fillColor:'#E4C87A', fillOpacity:0.1 }
-    }).addTo(map);
-    map.fitBounds(constituencyLayer.getBounds(), { maxZoom: 11, padding:[20,20] });
-
     const props = gj.features[0].properties;
     const nameKey = Object.keys(props).find(k => /NM$/i.test(k) && !/CD/i.test(k));
     return nameKey ? props[nameKey] : null;
   } catch(e){ return null; }
+}
+
+// Picks the smallest named area postcodes.io actually returned for this point:
+// civil parish (village/small town — not every postcode has one), else the
+// electoral ward (neighbourhood), else the council district (borough/town).
+function smallestAreaName(place){
+  if(!place) return null;
+  if(place.parish && !/unparished/i.test(place.parish)) return place.parish;
+  if(place.ward) return place.ward;
+  if(place.district) return place.district;
+  return null;
+}
+
+// Approximates a circle as a polygon ring of points on the Earth's surface —
+// used to query "everything within the local area boundary" from APIs (like
+// data.police.uk) that accept an arbitrary polygon but not a radius.
+function destinationPoint(lat, lng, bearingDeg, distanceMeters){
+  const R = 6371000;
+  const brng = bearingDeg * Math.PI/180;
+  const lat1 = lat * Math.PI/180, lng1 = lng * Math.PI/180;
+  const lat2 = Math.asin(Math.sin(lat1)*Math.cos(distanceMeters/R) + Math.cos(lat1)*Math.sin(distanceMeters/R)*Math.cos(brng));
+  const lng2 = lng1 + Math.atan2(Math.sin(brng)*Math.sin(distanceMeters/R)*Math.cos(lat1), Math.cos(distanceMeters/R)-Math.sin(lat1)*Math.sin(lat2));
+  return [lat2*180/Math.PI, lng2*180/Math.PI];
+}
+
+function circleRing(lat, lng, radiusMeters, points){
+  points = points || 16;
+  const ring = [];
+  for(let i = 0; i < points; i++){
+    ring.push(destinationPoint(lat, lng, (360/points)*i, radiusMeters));
+  }
+  return ring;
 }
 
 async function loadPostcodeInfo(lat, lng){
@@ -101,9 +134,10 @@ async function loadPostcodeInfo(lat, lng){
     if(!data.result || !data.result.length) return null;
     const p = data.result[0];
 
-    if(postcodeCircle) map.removeLayer(postcodeCircle);
-    postcodeCircle = L.circle([lat,lng], { radius:350, color:'#6FB98F', weight:1.5, fillColor:'#6FB98F', fillOpacity:0.15, dashArray:'4,4' }).addTo(map);
+    if(localAreaCircle) map.removeLayer(localAreaCircle);
+    localAreaCircle = L.circle([lat,lng], { radius: LOCAL_AREA_RADIUS_M, color:'#E4C87A', weight:2, fillColor:'#E4C87A', fillOpacity:0.1, dashArray:'4,4' }).addTo(map);
+    map.setView([lat,lng], Math.max(map.getZoom(), 12));
 
-    return { postcode: p.postcode, ward: p.admin_ward, district: p.admin_district };
+    return { postcode: p.postcode, ward: p.admin_ward, district: p.admin_district, parish: p.parish };
   } catch(e){ return null; }
 }

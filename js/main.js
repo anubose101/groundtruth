@@ -110,10 +110,10 @@ async function fetchMpInfo(constituencyName){
 
 function renderSummary(results){
   let summaryHtml = `<div class="location-block">`;
-  if(results.constituency){
-    summaryHtml += `<div class="location-constituency">${results.constituency}</div>`;
+  if(results.localAreaName){
+    summaryHtml += `<div class="location-constituency">${results.localAreaName}</div>`;
   } else {
-    summaryHtml += `<div class="location-constituency" style="color:var(--ink-dim); font-size:15px;">Constituency boundary not found</div>`;
+    summaryHtml += `<div class="location-constituency" style="color:var(--ink-dim); font-size:15px;">Local area name not found</div>`;
   }
   if(results.place){
     summaryHtml += `<div class="location-sub">Council: ${results.place.district || '—'}<br>Ward: ${results.place.ward || '—'}<br>Nearest postcode: ${results.place.postcode || '—'}</div>`;
@@ -146,7 +146,7 @@ function renderSummary(results){
   }
   summaryHtml += `</div>`;
 
-  summaryHtml += `<div class="note">Gold outline on the map = the parliamentary constituency. Green dashed circle = an approximate postcode zone. Trend arrows elsewhere: green = improving, red = worsening.</div>`;
+  summaryHtml += `<div class="note">Gold dashed circle on the map = the local area (smallest named boundary available: village/parish, else neighbourhood ward, else council district) that every "local area" figure on this page is built around. Trend arrows elsewhere: green = improving, red = worsening.</div>`;
   document.getElementById('summaryBody').innerHTML = summaryHtml;
 
   const aiBtn = document.getElementById('aiSummaryBtn');
@@ -163,8 +163,8 @@ async function loadStats(lat, lng){
   });
 
   const results = { lat, lng, crime: null, crimeTrend: null, air: null, weather: null,
-                     constituency: null, place: null, mp: null,
-                     areaCrime: null, areaCrimeTrend: null, areaAir: null,
+                     constituency: null, place: null, mp: null, localAreaName: null,
+                     areaCrime: null, areaCrimeTrend: null,
                      hpi: null, recentSales: null, designations: null, schools: null, transport: null };
 
   const [constituencyName, placeInfo] = await Promise.all([
@@ -173,6 +173,7 @@ async function loadStats(lat, lng){
   ]);
   results.constituency = constituencyName;
   results.place = placeInfo;
+  results.localAreaName = smallestAreaName(placeInfo) || constituencyName;
   results.mp = await fetchMpInfo(constituencyName);
 
   const pointBase = `https://data.police.uk/api/crimes-street/all-crime?lat=${lat}&lng=${lng}`;
@@ -185,18 +186,9 @@ async function loadStats(lat, lng){
   results.air = await fetchAirQuality(lat, lng);
   results.weather = await fetchWeather(lat, lng);
 
-  if(constituencyName){
-    const areaCrimeStats = await fetchAreaCrimeStats();
-    results.areaCrime = areaCrimeStats.crime;
-    results.areaCrimeTrend = areaCrimeStats.crimeTrend;
-
-    if(constituencyLayer){
-      try{
-        const c = constituencyLayer.getBounds().getCenter();
-        results.areaAir = await fetchAirQuality(c.lat, c.lng);
-      } catch(e){}
-    }
-  }
+  const areaCrimeStats = await fetchAreaCrimeStats(lat, lng);
+  results.areaCrime = areaCrimeStats.crime;
+  results.areaCrimeTrend = areaCrimeStats.crimeTrend;
 
   const councilName = results.place ? results.place.district : null;
   const postcode = results.place ? results.place.postcode : null;
