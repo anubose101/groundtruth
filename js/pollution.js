@@ -19,14 +19,6 @@ function pm25Rating(v){
 
 function renderPollution(results){
   let pollutionHtml = '';
-  if(results.areaAir){
-    pollutionHtml += `<div class="council-section"><div class="section-title">${results.constituency} — constituency-wide (centre point)</div>`;
-    const pm25 = results.areaAir.pm2_5;
-    const r1 = pm25Rating(pm25);
-    pollutionHtml += gauge('PM2.5', pm25||0, 40, pm25!=null?pm25.toFixed(1):'—', r1.c);
-    pollutionHtml += `</div>`;
-  }
-  pollutionHtml += `<div class="divider-label">At your exact pin</div>`;
   pollutionHtml += `<div class="block"><div class="block-title">Air quality</div>`;
   if(results.air){
     const pm25 = results.air.pm2_5, pm10 = results.air.pm10, no2 = results.air.nitrogen_dioxide;
@@ -39,6 +31,6 @@ function renderPollution(results){
     pollutionHtml += `<div class="err">Air quality data unavailable right now.</div>`;
   }
   pollutionHtml += `</div>`;
-  pollutionHtml += `<div class="note">Noise pollution isn't shown here — there's no free, reliably accessible UK noise-map data source to pull from.</div>`;
+  pollutionHtml += `<div class="note">No separate local-area figure here — air quality readings come from a weather-style grid roughly a few miles across, so a local-area reading would just repeat this same number. Noise pollution isn't shown at all — there's no free, reliably accessible UK noise-map data source to pull from.</div>`;
   document.getElementById('pollutionBody').innerHTML = pollutionHtml;
 }

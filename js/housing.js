@@ -217,6 +217,13 @@ async function fetchRecentSales(postcode){
   } catch(e){ return null; }
 }
 
+function averageRecentSalePrice(sales){
+  if(!sales || !sales.length) return null;
+  const prices = sales.map(s => s.price).filter(p => p != null);
+  if(!prices.length) return null;
+  return { avg: prices.reduce((a,b) => a+b, 0) / prices.length, count: prices.length };
+}
+
 /* ---------- Local development watch: stable planning.data.gov.uk designations ---------- */
 
 async function fetchDesignations(postcode){
@@ -296,12 +303,20 @@ function renderLandRegistry(results){
   } else {
     lrHtml += `<div class="err">Council-wide price history unavailable right now — this pulls live from Land Registry's own service, which can occasionally be unreachable.</div>`;
   }
-  lrHtml += `<div class="block"><div class="block-title">Recent sales at the nearest postcode</div>`;
-  if(results.recentSales && results.recentSales.length){
-    lrHtml += `<ul class="crime-list">` + results.recentSales.slice(0,8).map(s =>
+  lrHtml += `<div class="block"><div class="block-title">Your postcode${results.place && results.place.postcode ? ' (' + results.place.postcode + ')' : ''}</div>`;
+  const local = averageRecentSalePrice(results.recentSales);
+  if(local){
+    lrHtml += `<div class="headline-stat">£${Math.round(local.avg).toLocaleString()}</div>
+      <div class="headline-sub">average of ${local.count} recent individual sale${local.count>1?'s':''} at this exact postcode — the smallest area with any real price data, so treat it as a rough steer rather than a precise figure.</div>`;
+    if(results.hpi && results.hpi.latestPrice){
+      const vsDistrictPct = Math.round(((local.avg - results.hpi.latestPrice) / results.hpi.latestPrice) * 100);
+      const districtName = results.place ? results.place.district : 'the council area';
+      const compareText = vsDistrictPct > 2 ? `${vsDistrictPct}% above` : vsDistrictPct < -2 ? `${Math.abs(vsDistrictPct)}% below` : 'about level with';
+      lrHtml += `<div class="headline-sub" style="margin-top:8px;">${compareText} the ${districtName}-wide average shown above.</div>`;
+    }
+    lrHtml += `<ul class="crime-list" style="margin-top:10px;">` + results.recentSales.slice(0,8).map(s =>
       `<li><span>${(s.paon||'')} ${(s.street||'')}${s.date ? ', ' + s.date.slice(0,10) : ''}</span><span>£${s.price ? s.price.toLocaleString() : '—'}</span></li>`
     ).join('') + `</ul>`;
-    lrHtml += `<div class="headline-sub" style="margin-top:8px;">A UK postcode covers roughly 15 homes on average, so expect a short list here, not hundreds of sales.</div>`;
   } else {
     lrHtml += `<div class="err">No individual sale records found at this exact postcode, or the lookup didn't return data.</div>`;
   }
@@ -323,7 +338,7 @@ function renderPlanning(results){
   }
   planHtml += `</div>`;
 
-  const areaTerm = (results.constituency || '') + ' ' + (results.place ? results.place.district : '');
+  const areaTerm = (results.localAreaName || '') + ' ' + (results.place ? results.place.district : '');
   const searchQuery = encodeURIComponent(areaTerm + ' planning applications new development');
   const councilQuery = encodeURIComponent((results.place ? results.place.district : '') + ' council planning portal search');
   planHtml += `<div class="block"><div class="block-title">Worth checking yourself</div>
