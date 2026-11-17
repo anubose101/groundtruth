@@ -13,6 +13,9 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
 #app{display:flex; height:100vh; height:100dvh; width:100vw;}
 #map{flex:1 1 auto;height:100%;position:relative;}
+/* "Dark" map layer: the same OpenStreetMap tiles as "Light", inverted via CSS
+   instead of pulling a separate dark basemap from another host/account. */
+.dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);}
 
 /* Sidebar is an overlay drawer docked to the right, not part of the flex
    layout — #map is always full width/height underneath it, so collapsing
