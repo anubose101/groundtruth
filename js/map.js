@@ -3,14 +3,18 @@
 const map = L.map('map', {zoomControl:false}).setView([54.5, -3.0], 6);
 L.control.zoom({position:'bottomright'}).addTo(map);
 
-const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+const lightLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
 });
 const outdoorsLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17
 });
-const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+// "Dark" reuses the same OpenStreetMap tiles as Light, inverted via CSS (see
+// .dark-tiles in style.css) rather than pulling a separate dark basemap from
+// a different host — CARTO's own dark tiles are what broke this map in the
+// first place once CARTO started requiring an account key for free tiles.
+const darkLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors', maxZoom: 19, className: 'dark-tiles'
 });
 lightLayer.addTo(map);
 
